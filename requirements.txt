@@ -1,10 +1,22 @@
 # Core dependencies (always required)
 pandas>=1.5
-numpy>=1.24
+numpy>=1.24,<2.0
 scikit-learn>=1.2
 matplotlib>=3.6
 seaborn>=0.12
 
 # Optional: DeBERTa classifier (--model deberta)
-# torch>=2.0
-# transformers>=4.30
+# Install these separately in a Python 3.12 virtual environment:
+#
+#   python3.12 -m venv venv
+#   source venv/bin/activate
+#   pip install torch "transformers>=4.30,<5.0" sentencepiece protobuf "numpy<2"
+#   pip install -r requirements.txt
+#
+# Note: PyTorch only supports Python 3.12 up to torch==2.2.2 on macOS.
+# transformers>=5.0 requires torch>=2.4 and will NOT work — pin to <5.0.
+#
+# torch>=2.0,<2.4
+# transformers>=4.30,<5.0
+# sentencepiece
+# protobuf
