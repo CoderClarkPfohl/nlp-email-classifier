@@ -27,15 +27,48 @@ provided:
 
 ## Quick Start
 
+### Ensemble (works on any OS, no GPU needed)
+
 ```bash
-# 1. Install dependencies (only needed for DeBERTa pipeline)
-pip install torch transformers
-
-# 2. Run full pipeline (works without torch — uses SVM baseline)
+pip install -r requirements.txt
 python main.py --input data/job_app_confirmation_emails_anonymized.csv
+```
 
-# 3. Run with DeBERTa (requires transformers + torch)
+### DeBERTa — macOS / Linux
+
+Requires Python 3.12 (PyTorch does not support Python 3.13 on macOS).
+
+```bash
+python3.12 -m venv venv
+source venv/bin/activate
+pip install torch "transformers>=4.30,<5.0" sentencepiece protobuf "numpy<2"
+pip install -r requirements.txt
 python main.py --input data/job_app_confirmation_emails_anonymized.csv --model deberta
+```
+
+### DeBERTa — Windows
+
+PyTorch supports Python 3.12 on Windows — install it from [python.org](https://www.python.org/downloads/) if needed.
+
+```bat
+python -m venv venv
+venv\Scripts\activate
+pip install torch "transformers>=4.30,<5.0" sentencepiece protobuf "numpy<2"
+pip install -r requirements.txt
+python main.py --input data/job_app_confirmation_emails_anonymized.csv --model deberta
+```
+
+### DeBERTa model presets
+
+```bash
+# Balanced — recommended (~20 min CPU)
+python main.py --input data/... --model deberta --deberta-model balanced
+
+# Fast — for testing (~12 min CPU)
+python main.py --input data/... --model deberta --deberta-model fast
+
+# Best accuracy (~60 min CPU)
+python main.py --input data/... --model deberta --deberta-model best
 ```
 
 ## Project Structure
