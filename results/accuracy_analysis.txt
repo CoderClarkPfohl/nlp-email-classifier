@@ -1,0 +1,17 @@
+ACCURACY ANALYSIS
+============================================================
+
+Dataset: 494 emails, 5 classes
+Majority baseline: 64.4%
+Ensemble accuracy: 88.1%
+
+Realistic ceilings:
+  TF-IDF + Ensemble: 88-92%
+  DeBERTa zero-shot: 92-96%
+  Fine-tuned DeBERTa: 95-98%
+  Human ceiling: 95-97%
+
+To reach best accuracy:
+  1. pip install torch transformers
+  2. python main.py --input <csv> --model deberta
+  3. For fine-tuning: manually label 50+ emails per class

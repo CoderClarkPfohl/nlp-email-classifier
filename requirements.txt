@@ -1,0 +1,10 @@
+# Core dependencies (always required)
+pandas>=1.5
+numpy>=1.24
+scikit-learn>=1.2
+matplotlib>=3.6
+seaborn>=0.12
+
+# Optional: DeBERTa classifier (--model deberta)
+# torch>=2.0
+# transformers>=4.30
