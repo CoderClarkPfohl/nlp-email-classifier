@@ -1,19 +1,9 @@
 #!/usr/bin/env python3
-"""
-Synthetic Job Application Email Generator
-==========================================
-Generates a large, class-balanced dataset of realistic job application emails
-for training the classifier. Each email is generated from templates with
-randomized company names, roles, applicant names, dates, and natural variation.
 
-Target: ~2000 emails with roughly equal class distribution:
-  - acceptance:      300
-  - rejection:       400
-  - interview:       350
-  - action_required: 350
-  - in_process:      400
-  - unrelated:       200
-"""
+
+#Synthetic Data Generator
+#Creating emails that later would be used for training.
+
 
 import random
 import csv
@@ -22,10 +12,8 @@ from datetime import datetime, timedelta
 
 random.seed(42)
 
-# ─────────────────────────────────────────────────────────────
-#  Building blocks
-# ─────────────────────────────────────────────────────────────
 
+#list of random company names
 COMPANIES = [
     "Amazon", "Google", "Microsoft", "Apple", "Meta", "Netflix", "Tesla",
     "Salesforce", "Adobe", "Oracle", "Intel", "IBM", "Cisco", "VMware",
@@ -57,6 +45,7 @@ COMPANIES = [
     "Thermo Fisher", "Danaher", "Agilent", "Waters Corporation",
 ]
 
+#list of roles
 ROLES = [
     "Data Analyst", "Data Scientist", "Business Analyst",
     "Business Intelligence Analyst", "Machine Learning Engineer",
@@ -76,10 +65,12 @@ ROLES = [
     "Healthcare Data Analyst", "Revenue Analyst", "Pricing Analyst",
 ]
 
+#list of applicant names
 APPLICANT_NAMES = [
     "Michael Gary Scott", "Micheal Gary Scott",  # both spellings from real data
 ]
 
+#list of recruiter names
 RECRUITER_NAMES = [
     "Sarah Johnson", "James Williams", "Emily Chen", "David Rodriguez",
     "Maria Garcia", "Robert Kim", "Jennifer Lee", "Thomas Brown",
@@ -108,6 +99,7 @@ def rand_date():
     return base + offset
 
 def rand_job_id():
+    #generating rnadom job id
     return f"{random.randint(100000, 999999)}"
 
 def rand_sender(company):
@@ -121,12 +113,9 @@ def rand_sender(company):
     return random.choice(patterns)
 
 
-# ─────────────────────────────────────────────────────────────
-#  Email templates by category
-# ─────────────────────────────────────────────────────────────
 
+#Randomly generated emails under "IN PROCESS"
 def gen_in_process():
-    """Generate an 'in_process' / application confirmation email."""
     c = rand_company()
     r = rand_role()
     n = rand_name()
@@ -178,9 +167,8 @@ def gen_in_process():
     t = random.choice(templates)
     return c, t["subject"], t["body"], "in_process"
 
-
+#Randomly generated emails under "REJECTION"
 def gen_rejection():
-    """Generate a rejection email."""
     c = rand_company()
     r = rand_role()
     n = rand_name()
@@ -231,9 +219,8 @@ def gen_rejection():
     t = random.choice(templates)
     return c, t["subject"], t["body"], "rejection"
 
-
+#Randomly generated emails under "INTERVIEW"
 def gen_interview():
-    """Generate an interview invitation email."""
     c = rand_company()
     r = rand_role()
     n = rand_name()
@@ -288,9 +275,8 @@ def gen_interview():
     t = random.choice(templates)
     return c, t["subject"], t["body"], "interview"
 
-
+#Randomly generated emails under "ACTION_REQUIRED"
 def gen_action_required():
-    """Generate an action_required / assessment email."""
     c = rand_company()
     r = rand_role()
     n = rand_name()
@@ -343,9 +329,8 @@ def gen_action_required():
     t = random.choice(templates)
     return c, t["subject"], t["body"], "action_required"
 
-
+#Randomly generated emails under "ACCEPTANCE"
 def gen_acceptance():
-    """Generate an acceptance / offer email."""
     c = rand_company()
     r = rand_role()
     n = rand_name()
@@ -392,9 +377,8 @@ def gen_acceptance():
     t = random.choice(templates)
     return c, t["subject"], t["body"], "acceptance"
 
-
+#Randomly generated emails under "UNRELATED"
 def gen_unrelated():
-    """Generate an unrelated email (newsletter, portal, job alerts, etc.)."""
     c = rand_company()
     n = rand_name()
 
@@ -445,10 +429,10 @@ def gen_unrelated():
     return c, t["subject"], t["body"], "unrelated"
 
 
-# ─────────────────────────────────────────────────────────────
-#  Generate dataset
-# ─────────────────────────────────────────────────────────────
+#Working with the dataset
 
+#function generates the base of 2000 emails, 
+# with the following amount in each categpry:
 def generate_dataset(
     n_acceptance=300,
     n_rejection=400,
@@ -457,7 +441,7 @@ def generate_dataset(
     n_in_process=400,
     n_unrelated=200,
 ):
-    """Generate the full synthetic dataset."""
+    #generating using functions above
     generators = [
         (gen_acceptance, n_acceptance),
         (gen_rejection, n_rejection),
@@ -486,7 +470,7 @@ def generate_dataset(
                 "email_body": body,
                 "company": company,
                 "subject": subject,
-                "true_label": label,  # ground truth for training!
+                "true_label": label,  # GT for training
             })
             idx += 1
 
@@ -495,7 +479,7 @@ def generate_dataset(
 
 
 def main():
-    print("Generating synthetic job application email dataset...")
+    print("***Generating dataset***")
     print()
 
     rows = generate_dataset()
