@@ -1,16 +1,9 @@
-"""
-Ensemble classifier for job application emails.
-Combines TF-IDF features with multiple classifiers and handles
-severe class imbalance through synthetic oversampling.
+#CS 7347 Natural Language Processing
 
-Models in the ensemble:
-  1. Linear SVM (strong on text, handles high-dim features)
-  2. Logistic Regression (probabilistic, good calibration)
-  3. Multinomial Naive Bayes (fast, handles sparse features well)
 
-The ensemble uses soft voting (averaged probabilities) for the final
-prediction, which is more robust than any single model.
-"""
+#***Ensemble classifier***
+
+#________________libraries
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -24,34 +17,27 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.base import BaseEstimator, ClassifierMixin
 from typing import Dict, List, Tuple
 from collections import Counter
+#________________
 
 
-# ─────────────────────────────────────────────────────────────
-#  Simple oversampler (no imblearn dependency)
-# ─────────────────────────────────────────────────────────────
+#oversampler
 def oversample_minority(X, y, min_samples: int = 30, random_state: int = 42):
-    """
-    Duplicate samples from minority classes until they reach min_samples.
-    This is a simple alternative to SMOTE that works with sparse TF-IDF matrices.
-    """
+   #duplicate until reach min_samples per class
     rng = np.random.RandomState(random_state)
     counts = Counter(y)
     indices = list(range(len(y)))
 
     for label, count in counts.items():
         if count < min_samples:
-            # Find indices of this class
             class_idx = [i for i, lbl in enumerate(y) if lbl == label]
-            # How many more do we need?
             n_needed = min_samples - count
-            # Sample with replacement
             extra_idx = rng.choice(class_idx, size=n_needed, replace=True)
             indices.extend(extra_idx.tolist())
 
     rng.shuffle(indices)
 
+    #matrix
     if hasattr(X, 'toarray'):
-        # Sparse matrix
         X_new = X[indices]
     else:
         X_new = X[indices]
@@ -60,14 +46,9 @@ def oversample_minority(X, y, min_samples: int = 30, random_state: int = 42):
     return X_new, y_new
 
 
-# ─────────────────────────────────────────────────────────────
-#  Soft-voting ensemble
-# ─────────────────────────────────────────────────────────────
+#softvote
 class SoftVotingEnsemble(BaseEstimator, ClassifierMixin):
-    """
-    Soft-voting ensemble that averages predicted probabilities from
-    multiple calibrated classifiers.
-    """
+    #predicted probabilities averaged across classifiers
     def __init__(self, classifiers=None, weights=None):
         self.classifiers = classifiers or []
         self.weights = weights
@@ -96,9 +77,7 @@ class SoftVotingEnsemble(BaseEstimator, ClassifierMixin):
         return self.classes_[np.argmax(avg_proba, axis=1)]
 
 
-# ─────────────────────────────────────────────────────────────
-#  Pipeline builders
-# ─────────────────────────────────────────────────────────────
+#builders pipelinne
 def build_tfidf(max_features: int = 8000) -> TfidfVectorizer:
     return TfidfVectorizer(
         max_features=max_features,
@@ -111,7 +90,7 @@ def build_tfidf(max_features: int = 8000) -> TfidfVectorizer:
 
 
 def build_ensemble():
-    """Build the 3-model ensemble with calibrated probabilities."""
+    #ensemble (3m) calibrated SVM
     svm = CalibratedClassifierCV(
         LinearSVC(C=1.0, class_weight="balanced", max_iter=5000, random_state=42),
         cv=3, method="sigmoid"
@@ -124,7 +103,7 @@ def build_ensemble():
 
     return SoftVotingEnsemble(
         classifiers=[svm, lr, nb],
-        weights=[2.0, 2.0, 1.0],  # SVM and LR weighted higher
+        weights=[2.0, 2.0, 1.0],  #weights SVM + LR
     )
 
 
@@ -133,17 +112,11 @@ def train_and_evaluate(
     labels: List[str],
     n_folds: int = 5,
 ) -> Tuple[object, np.ndarray, Dict]:
-    """
-    Train the ensemble pipeline with oversampling and evaluate via
-    stratified k-fold cross-validation.
-
-    Returns
-    -------
-    (tfidf, ensemble, predictions, metrics_dict)
-    """
+    #training + cross-val, returns trained tfidf, ensemble, predictions, metrics
+    #out -> (tfidf, ensemble, predictions, metrics_dict)
     tfidf = build_tfidf()
 
-    # Transform all text to TF-IDF
+    #text -> TF-IDF matrix
     X_all = tfidf.fit_transform(texts)
     y_all = labels
 
@@ -151,7 +124,7 @@ def train_and_evaluate(
     print(f"       Training with {len(texts)} samples, {len(label_set)} classes")
     print(f"       Class distribution: {Counter(labels)}")
 
-    # ── Cross-validation with oversampling inside each fold ──
+    #folds 
     skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
     cv_preds = np.array([""] * len(labels), dtype=object)
     cv_probas = np.zeros((len(labels), len(label_set)))
@@ -163,7 +136,7 @@ def train_and_evaluate(
         y_train = [y_all[i] for i in train_idx]
         X_test = X_all[test_idx]
 
-        # Oversample minority classes in training set only
+        #oversampl
         X_train_os, y_train_os = oversample_minority(X_train, y_train, min_samples=25)
 
         ensemble = build_ensemble()
@@ -179,14 +152,12 @@ def train_and_evaluate(
         fold_reports.append(fold_acc)
         print(f"       Fold {fold_idx+1}: accuracy = {fold_acc:.4f}")
 
-    # ── Final metrics ──
-    report_str = classification_report(y_all, cv_preds, labels=label_set,
-                                        zero_division=0)
-    report_dict = classification_report(y_all, cv_preds, labels=label_set,
-                                         output_dict=True, zero_division=0)
+    #final evaluation on all data
+    report_str = classification_report(y_all, cv_preds, labels=label_set, zero_division=0)
+    report_dict = classification_report(y_all, cv_preds, labels=label_set, output_dict=True, zero_division=0)
     cm = confusion_matrix(y_all, cv_preds, labels=label_set)
 
-    # ── Train final model on all data (for inference) ──
+    #training fin model on all data with oversampling
     X_all_os, y_all_os = oversample_minority(X_all, list(y_all), min_samples=25)
     final_ensemble = build_ensemble()
     final_ensemble.fit(X_all_os, y_all_os)
@@ -204,6 +175,6 @@ def train_and_evaluate(
 
 
 def predict(tfidf, ensemble, texts: List[str]) -> np.ndarray:
-    """Run inference on new texts."""
+    #inference on new texts
     X = tfidf.transform(texts)
     return ensemble.predict(X)
