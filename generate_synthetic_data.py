@@ -457,6 +457,7 @@ def generate_dataset(
         for _ in range(count):
             company, subject, body, label = gen_fn()
             d = rand_date()
+            #filling the rows wuth generated data
             rows.append({
                 "Unnamed: 0": idx,
                 "sender": rand_sender(company),
@@ -495,7 +496,7 @@ def main():
         bar = "█" * int(pct / 2)
         print(f"  {label:20s} {count:4d} ({pct:5.1f}%) {bar}")
 
-    # Save
+    # Save the data to csv
     out_dir = "data"
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, "synthetic_emails.csv")
