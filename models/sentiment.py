@@ -1,12 +1,11 @@
-"""
-Lexicon-based sentiment analysis for job application emails.
-Provides positive / negative / neutral scoring without NLTK or external models.
-Tuned for the language commonly found in recruiter emails.
-"""
+#CS 7347 Natural Language Processing
+
+
+#***Sentiment Analysis***
 
 from typing import Dict
 
-# Domain-specific sentiment lexicon for job application emails
+#rule-based sentim analysis
 POSITIVE_WORDS = frozenset([
     "congratulations", "pleased", "delighted", "excited", "thrilled",
     "welcome", "offer", "accepted", "selected", "progressing",
@@ -32,21 +31,10 @@ NEUTRAL_WORDS = frozenset([
 
 
 def compute_sentiment(text: str) -> Dict[str, float]:
-    """
-    Compute sentiment scores for job-application email text.
+    #sentiment scores
 
-    Returns
-    -------
-    dict with keys:
-        positive : float  (0-1 score)
-        negative : float  (0-1 score)
-        neutral  : float  (0-1 score)
-        compound : float  (-1 to +1 overall sentiment)
-        label    : str    ('positive', 'negative', or 'neutral')
-    """
     if not text:
-        return {"positive": 0, "negative": 0, "neutral": 0,
-                "compound": 0, "label": "neutral"}
+        return {"positive": 0, "negative": 0, "neutral": 0, "compound": 0, "label": "neutral"}
 
     lower = text.lower()
     words = lower.split()
@@ -56,11 +44,10 @@ def compute_sentiment(text: str) -> Dict[str, float]:
     neg_count = sum(1 for w in NEGATIVE_WORDS if w in lower)
     neu_count = sum(1 for w in NEUTRAL_WORDS if w in lower)
 
-    # Also check multi-word phrases
+    #several words/phrases to test
     for phrase in ["not moving", "decided not", "not selected",
                    "not proceed", "not a fit", "not be moving",
-                   "difficult decision", "other candidates",
-                   "looking forward"]:
+                   "difficult decision", "other candidates", "looking forward"]:
         if phrase in lower:
             if phrase == "looking forward":
                 pos_count += 1
@@ -72,7 +59,6 @@ def compute_sentiment(text: str) -> Dict[str, float]:
     neg_score = neg_count / denom
     neu_score = neu_count / denom
 
-    # Compound: range -1 to +1
     compound = (pos_count - neg_count) / max(pos_count + neg_count, 1)
 
     if compound > 0.15:

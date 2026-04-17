@@ -1,25 +1,12 @@
 #!/usr/bin/env python3
-"""
-Job Application Email Classifier — Main Pipeline (v2)
-======================================================
-CS 7347 Natural Language Processing · Group Project
+#CS 7347 Natural Language Processing
 
-Pipeline:
-  1. Load & preprocess emails
-  2. Rule-based pseudo-labeling (v2 — scoring-based)
-  3. Sentiment analysis
-  4. Entity extraction (company, role, contact, dates)
-  5. Extractive summarization
-  6. Train & evaluate ensemble classifier (SVM + LR + NB)
-  7. (Optional) DeBERTa zero-shot classification
-  8. Generate results: CSV, plots, metrics, accuracy analysis
+#***Job Application Email Classifier — Main Pipeline (v2)***
 
-Usage
------
-    python main.py --input data/job_app_confirmation_emails_anonymized.csv
-    python main.py --input data/job_app_confirmation_emails_anonymized.csv --model deberta
-"""
+#   python main.py --input data/job_app_confirmation_emails_anonymized.csv
+#   python main.py --input data/job_app_confirmation_emails_anonymized.csv --model deberta
 
+#________________libraries
 import argparse
 import os
 import sys
@@ -41,21 +28,17 @@ from utils.summarizer import summarize_email
 from models.rule_labeler import label_email
 from models.sentiment import compute_sentiment
 from models.svm_classifier import train_and_evaluate
-
+#________________
 
 RESULTS_DIR = "results"  # overridden by --output flag
-LABELS = ["acceptance", "rejection", "interview", "action_required",
-          "in_process", "unrelated"]
+LABELS = ["acceptance", "rejection", "interview", "action_required", "in_process", "unrelated"]
 
 
 def ensure_dirs():
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
 
-# ─────────────────────────────────────────────────────────────
-#  Pipeline Steps
-# ─────────────────────────────────────────────────────────────
-
+#building the pipeline
 def load_data(path: str) -> pd.DataFrame:
     print(f"[1/7] Loading data from {path}")
     df = pd.read_csv(path)
@@ -104,10 +87,8 @@ def apply_sentiment(df: pd.DataFrame) -> pd.DataFrame:
 def apply_entity_extraction(df: pd.DataFrame) -> pd.DataFrame:
     print("[5/7] Entity extraction")
     entities = df.apply(
-        lambda r: extract_entities(str(r.get("email_body", "")),
-                                    str(r.get("company", ""))),
-        axis=1,
-    )
+        lambda r: extract_entities(str(r.get("email_body", "")), str(r.get("company", ""))),
+        axis=1, )
     df["extracted_role"] = [e["job_role"] for e in entities]
     df["contact_person"] = [e["contact_person"] for e in entities]
     df["contact_email"] = [e["contact_email"] for e in entities]
@@ -126,10 +107,7 @@ def apply_summarization(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ─────────────────────────────────────────────────────────────
-#  Classification
-# ─────────────────────────────────────────────────────────────
-
+# 2. Classification
 def run_ensemble(df: pd.DataFrame) -> pd.DataFrame:
     print("[7/7] Training ensemble classifier (SVM + LR + NB) with oversampling")
     texts = df["clean_body"].tolist()
@@ -147,18 +125,18 @@ def run_ensemble(df: pd.DataFrame) -> pd.DataFrame:
     print(f"  Mean fold accuracy: {metrics['mean_cv_accuracy']:.4f}")
     print(f"  Per-fold: {[f'{a:.4f}' for a in metrics['fold_accuracies']]}")
 
-    # Save report
+    #saving to file
     with open(os.path.join(RESULTS_DIR, "classification_report.txt"), "w") as f:
         f.write("Ensemble Classification Report (5-fold CV + oversampling)\n")
         f.write("=" * 60 + "\n")
         f.write(metrics["report_text"])
         f.write(f"\nMean fold accuracy: {metrics['mean_cv_accuracy']:.4f}\n")
 
-    plot_confusion_matrix(metrics["confusion_matrix"], metrics["labels"],
-                          "Ensemble Confusion Matrix (5-fold CV)",
-                          "confusion_matrix.png")
+    plot_confusion_matrix(metrics["confusion_matrix"], 
+                          metrics["labels"], 
+                          "Ensemble Confusion Matrix (5-fold CV)","confusion_matrix.png")
 
-    # Accuracy analysis
+    #accuracy analysis
     print_accuracy_analysis(df, metrics)
 
     return df
@@ -206,7 +184,7 @@ def run_deberta(df: pd.DataFrame, deberta_model: str = None) -> pd.DataFrame:
     df["deberta_label"] = [r["label"] for r in results]
     df["deberta_confidence"] = [r["confidence"] for r in results]
 
-    # Hybrid tie-breaker: trust DeBERTa when high-confidence OR agrees with rule label
+    #DeBERTa / rule label
     HIGH_CONFIDENCE = 0.65
     df["final_label"] = df.apply(
         lambda r: r["deberta_label"]
@@ -222,7 +200,7 @@ def run_deberta(df: pd.DataFrame, deberta_model: str = None) -> pd.DataFrame:
     if fallback_count > 0:
         print(f"       Low-confidence fallbacks to rule label: {fallback_count}/{len(df)}")
 
-    # Fix 5: Agreement metric — flags miscalibration if below 70%
+    #fix 5: Agreement metric — flags miscalibration if below 70%
     agreement = (df["deberta_label"] == df["rule_label"]).mean()
     flag = " (WARNING: possible miscalibration)" if agreement < 0.70 else ""
     print(f"       DeBERTa/rule-label agreement: {agreement:.1%}{flag}")
@@ -233,13 +211,9 @@ def run_deberta(df: pd.DataFrame, deberta_model: str = None) -> pd.DataFrame:
 
     return df
 
-
-# ─────────────────────────────────────────────────────────────
-#  Accuracy Analysis
-# ─────────────────────────────────────────────────────────────
-
+# 3. Accuracy Analysis
 def print_accuracy_analysis(df: pd.DataFrame, metrics: Dict = None):
-    """Print a detailed analysis of accuracy and what limits it."""
+    #printing accuracy analysis + ceilings 
     print("\n" + "=" * 60)
     print("  ACCURACY ANALYSIS")
     print("=" * 60)
@@ -260,7 +234,7 @@ def print_accuracy_analysis(df: pd.DataFrame, metrics: Dict = None):
         bar = "█" * max(1, int(cnt / n * 50))
         print(f"    {lbl:20s} {cnt:4d} ({cnt/n*100:5.1f}%) {bar}")
 
-    # What % of errors come from minority classes?
+    #% of errors from minority classes
     if "ensemble_prediction" in df.columns:
         errors = df[df["ensemble_prediction"] != df["rule_label"]]
         if len(errors) > 0:
@@ -278,9 +252,9 @@ def print_accuracy_analysis(df: pd.DataFrame, metrics: Dict = None):
     print(f"    Fine-tuned DeBERTa:          ~95-98%  (needs 50+ labels/class)")
     print(f"    Human agreement ceiling:     ~95-97%  (some emails are ambiguous)")
 
-    print(f"\n  Why 100% is impossible:")
+    print(f"\n  Why 100% is unattainable:")
     print(f"    - {(df['rule_confidence'] < 0.6).sum()} emails have ambiguous signals")
-    # Count multi-signal emails
+    #count multi-signal emails
     multi = 0
     for _, row in df.iterrows():
         text = (str(row.get("subject", "")) + " " + str(row.get("email_body", ""))).lower()
@@ -294,7 +268,7 @@ def print_accuracy_analysis(df: pd.DataFrame, metrics: Dict = None):
     print(f"    - Many 'in_process' emails mention future steps (interview/assessment)")
     print(f"      that haven't happened yet — category depends on intent")
 
-    # Write analysis to file
+    #analysis to file
     with open(os.path.join(RESULTS_DIR, "accuracy_analysis.txt"), "w") as f:
         f.write("ACCURACY ANALYSIS\n")
         f.write("=" * 60 + "\n\n")
@@ -312,11 +286,7 @@ def print_accuracy_analysis(df: pd.DataFrame, metrics: Dict = None):
         f.write(f"  2. python main.py --input <csv> --model deberta\n")
         f.write(f"  3. For fine-tuning: manually label 50+ emails per class\n")
 
-
-# ─────────────────────────────────────────────────────────────
-#  Visualization
-# ─────────────────────────────────────────────────────────────
-
+# 4. Graphs
 def plot_confusion_matrix(cm, labels, title, filename):
     fig, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
@@ -334,6 +304,7 @@ def plot_confusion_matrix(cm, labels, title, filename):
 def plot_label_distribution(df: pd.DataFrame):
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
+    #label disrtibution graph
     counts = df["final_label"].value_counts()
     colors = sns.color_palette("Set2", len(counts))
     axes[0].barh(counts.index, counts.values, color=colors)
@@ -342,6 +313,7 @@ def plot_label_distribution(df: pd.DataFrame):
     for i, v in enumerate(counts.values):
         axes[0].text(v + 1, i, str(v), va="center")
 
+    #sentiment graph
     grouped = df.groupby("final_label")["sentiment_compound"].mean().sort_values()
     bar_colors = ["#e74c3c" if v < -0.1 else "#2ecc71" if v > 0.1 else "#95a5a6"
                   for v in grouped.values]
@@ -356,7 +328,7 @@ def plot_label_distribution(df: pd.DataFrame):
     plt.close()
     print(f"       Saved: {path}")
 
-
+    #sentiment distribution graph
 def plot_sentiment_distribution(df: pd.DataFrame):
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
@@ -401,7 +373,7 @@ def plot_top_companies(df: pd.DataFrame, top_n: int = 15):
 
 
 def plot_accuracy_comparison(metrics: Dict):
-    """Bar chart comparing accuracy of different approaches."""
+    #comp of accuracy different approaches graph
     fig, ax = plt.subplots(figsize=(10, 5))
 
     approaches = [
@@ -426,7 +398,7 @@ def plot_accuracy_comparison(metrics: Dict):
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
                 f"{acc:.1f}%", ha="center", va="bottom", fontweight="bold")
 
-    # Add human ceiling line
+    #+ human ceiling line
     ax.axhline(y=96, color="red", linestyle="--", alpha=0.5, label="Human ceiling (~96%)")
     ax.legend()
 
@@ -438,10 +410,7 @@ def plot_accuracy_comparison(metrics: Dict):
     print(f"       Saved: {path}")
 
 
-# ─────────────────────────────────────────────────────────────
-#  Main
-# ─────────────────────────────────────────────────────────────
-
+#______ main code
 def main():
     parser = argparse.ArgumentParser(
         description="Job Application Email Classifier — NLP Pipeline"
@@ -477,19 +446,19 @@ def main():
     else:
         df = run_ensemble(df)
 
-    # Visualizations
+    #Graphs
     print("\nGenerating visualizations...")
     plot_label_distribution(df)
     plot_sentiment_distribution(df)
     plot_top_companies(df)
 
-    # Get metrics for comparison plot
+    #comp matrix
     if "ensemble_prediction" in df.columns:
         from sklearn.metrics import accuracy_score
         acc = accuracy_score(df["rule_label"], df["ensemble_prediction"])
         plot_accuracy_comparison({"mean_cv_accuracy": acc})
 
-    # Save output
+    #save output
     output_cols = [
         "company", "subject", "date_only", "email_body",
         "rule_label", "rule_confidence", "final_label",
@@ -502,7 +471,7 @@ def main():
     df[output_cols].to_csv(out_path, index=False)
     print(f"\nFinal dataset saved: {out_path}")
 
-    # Sample results
+    #sample results
     print("\n" + "=" * 60)
     print("  Sample Results")
     print("=" * 60)

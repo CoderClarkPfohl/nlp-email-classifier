@@ -1,38 +1,22 @@
-"""
-Rule-based email labeler — v2 (improved).
-Generates pseudo-labels for job application emails based on keyword/phrase
-matching heuristics. These labels serve as training data for ML classifiers.
+#CS 7347 Natural Language Processing
 
-Key improvements over v1:
-- Much broader phrase lists for minority classes (action_required, interview)
-- Multi-signal scoring (when email matches multiple categories, strongest wins)
-- Subject-line weighting (subjects are more reliable signals)
-- Confidence scoring based on margin between top two categories
 
-Labels
-------
-- acceptance      : offer letter, congratulations on being hired
-- rejection       : application declined
-- interview       : interview invitation or scheduling
-- action_required : assessment, coding challenge, task to complete
-- in_process      : application received, under review
-- unrelated       : newsletters, marketing, account setup emails
-"""
+#***Rule-based Email Labeler***
 
 from typing import Tuple, Dict
 
 
+#helper function
 def _count_matches(text: str, phrases: list) -> int:
     """Count how many phrases appear in the text."""
     return sum(1 for p in phrases if p in text)
 
-
+#helper function
 def _has_any(text: str, phrases: list) -> bool:
     return any(p in text for p in phrases)
 
 
-# ── Phrase dictionaries ──
-
+#reject strong dict
 REJECTION_STRONG = [
     "regret to inform", "not moving forward", "decided not to proceed",
     "not be moving forward", "will not be advancing", "not been selected",
@@ -46,6 +30,7 @@ REJECTION_STRONG = [
     "pursue other candidates", "move on with other applicants",
 ]
 
+#reject med dict
 REJECTION_MEDIUM = [
     "unfortunately", "we will not", "cannot offer",
     "no longer being considered", "not selected for",
@@ -53,6 +38,7 @@ REJECTION_MEDIUM = [
     "we're unable to", "not the right fit",
 ]
 
+#accptance
 ACCEPTANCE_PHRASES = [
     "pleased to offer", "congratulations on your offer",
     "we are excited to extend", "offer of employment",
@@ -62,6 +48,7 @@ ACCEPTANCE_PHRASES = [
     "thrilled to welcome you", "welcome to the team",
 ]
 
+#interview strong dict
 INTERVIEW_STRONG = [
     "schedule an interview", "interview invitation",
     "like to invite you", "interview has been scheduled",
@@ -79,6 +66,7 @@ INTERVIEW_STRONG = [
     "recruiter will be reaching out",
 ]
 
+#interview med dict
 INTERVIEW_MEDIUM = [
     "next round", "we'd like to learn more about you",
     "meet with our team", "hiring manager would like",
@@ -88,6 +76,7 @@ INTERVIEW_MEDIUM = [
     "like to move forward with your candidacy",
 ]
 
+#action strong dict
 ACTION_STRONG = [
     "complete your assessment", "action required",
     "coding challenge", "take the assessment",
@@ -102,12 +91,14 @@ ACTION_STRONG = [
     "pre-employment", "background check",
 ]
 
+#action med dict
 ACTION_MEDIUM = [
     "next steps in the process", "complete your profile",
     "verify your identity", "provide additional",
     "we need some information", "submit your",
 ]
 
+#unrel dict
 UNRELATED_PHRASES = [
     "unsubscribe from all", "newsletter", "marketing preferences",
     "password reset", "verify your email address",
@@ -117,6 +108,7 @@ UNRELATED_PHRASES = [
     "jobs that match", "new jobs for you",
 ]
 
+#in-process dict
 IN_PROCESS_PHRASES = [
     "received your application", "thank you for applying",
     "application was sent", "application has been received",
@@ -132,13 +124,8 @@ IN_PROCESS_PHRASES = [
 
 
 def label_email(subject: str, body: str) -> Tuple[str, float]:
-    """
-    Assign a category label using a scoring system.
-    Each category accumulates signal strength from phrase matches;
-    the strongest signal wins. This handles multi-signal emails
-    (e.g., "thank you for applying... please complete the assessment")
-    better than simple if/else chains.
-    """
+
+    #category based on scores
     subj = subject.lower() if isinstance(subject, str) else ""
     text = body.lower() if isinstance(body, str) else ""
     combined = subj + " " + text
@@ -148,39 +135,39 @@ def label_email(subject: str, body: str) -> Tuple[str, float]:
         "action_required": 0.0, "in_process": 0.0, "unrelated": 0.0,
     }
 
-    # ── Rejection ──
+    #rejection
     scores["rejection"] += _count_matches(combined, REJECTION_STRONG) * 5.0
     scores["rejection"] += _count_matches(combined, REJECTION_MEDIUM) * 2.0
     if _has_any(subj, ["status update", "application update", "follow-up"]):
         if scores["rejection"] > 0:
             scores["rejection"] += 2.0
 
-    # ── Acceptance ──
+    #acceptance
     scores["acceptance"] += _count_matches(combined, ACCEPTANCE_PHRASES) * 5.0
 
-    # ── Interview ──
+    #interview
     scores["interview"] += _count_matches(combined, INTERVIEW_STRONG) * 4.0
     scores["interview"] += _count_matches(combined, INTERVIEW_MEDIUM) * 2.0
     if _has_any(subj, ["interview", "phone screen", "screening"]):
         scores["interview"] += 3.0
 
-    # ── Action required ──
+    #action required
     scores["action_required"] += _count_matches(combined, ACTION_STRONG) * 4.0
     scores["action_required"] += _count_matches(combined, ACTION_MEDIUM) * 1.5
     if _has_any(subj, ["action required", "assessment", "complete",
                         "next steps", "action needed"]):
         scores["action_required"] += 3.0
 
-    # ── Unrelated ──
+    #
     scores["unrelated"] += _count_matches(combined, UNRELATED_PHRASES) * 3.0
     if not _has_any(combined, ["application", "applied", "position", "role",
                                 "candidate", "resume", "job"]):
         scores["unrelated"] += 2.0
 
-    # ── In-process (lower weight — this is the default) ──
-    scores["in_process"] += _count_matches(combined, IN_PROCESS_PHRASES) * 1.5
+        #in-process
+        scores["in_process"] += _count_matches(combined, IN_PROCESS_PHRASES) * 1.5
 
-    # ── Determine winner ──
+    #final decision based on highest score and margin
     best_label = max(scores, key=scores.get)
     best_score = scores[best_label]
 
