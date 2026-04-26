@@ -4,18 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NLP Email Classifier</title>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=DM+Sans:wght@400;500&display=swap"
           rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
           rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<div class="container py-5" style="max-width:680px">
+<div class="container py-5" style="max-width:660px">
 
-    <div class="page-header">
-        <h1 class="page-title">NLP Email Classifier</h1>
-        <p class="page-subtitle">Job Application Email Analysis &nbsp;·&nbsp; CS 7347 NLP</p>
+    <div class="mb-4">
+        <h1 class="page-title d-flex align-items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="34" height="42" viewBox="0 0 36 46"
+                 fill="none" stroke="#2D2926" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round"
+                 style="flex-shrink:0;opacity:0.75">
+                <!-- ear tufts -->
+                <polyline points="11,8 8,1 14,7"/>
+                <polyline points="25,8 28,1 22,7"/>
+                <!-- head -->
+                <ellipse cx="18" cy="15" rx="11" ry="10"/>
+                <!-- eyes -->
+                <circle cx="13" cy="14" r="4"/>
+                <circle cx="13" cy="14" r="1.8" fill="#2D2926" stroke="none"/>
+                <circle cx="23" cy="14" r="4"/>
+                <circle cx="23" cy="14" r="1.8" fill="#2D2926" stroke="none"/>
+                <!-- beak -->
+                <path d="M15.5 19 L18 23 L20.5 19Z" fill="#FFC629" stroke="#2D2926" stroke-width="1"/>
+                <!-- body -->
+                <ellipse cx="18" cy="34" rx="13" ry="11"/>
+                <!-- wing feather lines -->
+                <path d="M7 31 Q18 26 29 31"/>
+                <path d="M6 37 Q18 32 30 37"/>
+                <!-- feet -->
+                <path d="M14 44 L12 46 M14 44 L14 46 M14 44 L16 46"/>
+                <path d="M22 44 L20 46 M22 44 L22 46 M22 44 L24 46"/>
+            </svg>
+            NLP Email Classifier
+        </h1>
+        <p class="page-subtitle">
+            <span class="course-tag">CS 7347 NLP</span>
+            Job Application Email Analysis
+        </p>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -30,13 +60,13 @@
     {% endwith %}
 
     <div class="category-strip">
-        <span class="strip-label">Categories —</span>
-        <span class="badge" style="background:#C6EFCE;color:#006100">Acceptance</span>
-        <span class="badge" style="background:#FFC7CE;color:#9C0006">Rejection</span>
-        <span class="badge" style="background:#BDD7EE;color:#1F4E79">Interview</span>
-        <span class="badge" style="background:#FCE4D6;color:#974706">Action Required</span>
-        <span class="badge" style="background:#FFF2CC;color:#7F6000">In Progress</span>
-        <span class="badge" style="background:#D9D9D9;color:#404040">Unrelated</span>
+        <span class="strip-label">Output categories</span>
+        <span class="badge" style="background:#D1FAE5;color:#065f46">Acceptance</span>
+        <span class="badge" style="background:#FEE2E2;color:#991b1b">Rejection</span>
+        <span class="badge" style="background:#CCFBF1;color:#115e59">Interview</span>
+        <span class="badge" style="background:#FCE7F3;color:#831843">Action Required</span>
+        <span class="badge" style="background:#EDE9FE;color:#4c1d95">In Progress</span>
+        <span class="badge" style="background:#F3F4F6;color:#374151">Unrelated</span>
     </div>
 
     <div class="upload-card">
@@ -45,7 +75,7 @@
 
             <div id="drop-zone" class="drop-zone mb-3">
                 <div class="drop-zone-text">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"
+                    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38"
                          fill="currentColor" class="mb-2 drop-zone-icon"
                          viewBox="0 0 16 16">
                         <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1
@@ -56,14 +86,14 @@
                                  0V2.707L5.354 4.854a.5.5 0 1
                                  1-.708-.708z"/>
                     </svg>
-                    <p class="mb-1">Drag &amp; drop a CSV file here</p>
-                    <p class="small mb-0" style="color:#92400e">or click to browse</p>
+                    <p class="mb-1 fw-medium">Drag &amp; drop a CSV file here</p>
+                    <p class="small mb-0" style="color:#d4a017">or click to browse</p>
                 </div>
                 <input type="file" name="file" id="file-input"
                        accept=".csv" class="d-none">
             </div>
 
-            <div id="file-name" class="mb-3 fw-medium d-none" style="color:#16a34a"></div>
+            <div id="file-name" class="mb-3 fw-medium d-none" style="color:#16a34a;font-size:0.875rem"></div>
 
             <button type="submit" class="btn btn-run w-100"
                     id="submit-btn" disabled>
@@ -72,14 +102,14 @@
         </form>
 
         <div id="spinner" class="text-center py-4 d-none">
-            <div class="spinner-border spinner-amber" role="status"></div>
-            <p class="mt-2 small" style="color:#64748b">Running NLP pipeline&hellip; this may take 10–30 seconds.</p>
+            <div class="spinner-border spinner-ksu" role="status"></div>
+            <p class="mt-2 small" style="color:#5c574f">Running NLP pipeline&hellip; this may take 10–30 seconds.</p>
         </div>
     </div>
 
     <footer class="site-footer">
         Clark Pfohl &nbsp;·&nbsp; Michael Zimmerman &nbsp;·&nbsp; Oleksandra Zolotarevych
-        &nbsp;&nbsp;|&nbsp;&nbsp; CS 7347 Natural Language Processing &nbsp;·&nbsp; Spring 2025
+        &nbsp;&nbsp;|&nbsp;&nbsp; CS 7347 Natural Language Processing &nbsp;·&nbsp; Spring 2026
     </footer>
 
 </div>
