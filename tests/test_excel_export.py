@@ -21,36 +21,42 @@ def sample_df():
     rows = [
         {"company": "Acme",  "subject": "Offer letter",      "date_only": "2025-01-01",
          "final_label": "acceptance",      "rule_label": "acceptance",      "rule_confidence": 0.95,
+         "ensemble_confidence": 0.91, "ensemble_top2_gap": 0.30, "review_status": "auto_accept",
          "sentiment_label": "positive",  "sentiment_compound": 0.8,
          "extracted_role": "Engineer",   "contact_person": "Jane Doe",
          "contact_email": "jane@acme.com", "dates_mentioned": "Jan 15, 2025",
          "summary": "We are pleased to offer you the position.", "email_body": "Full body text here."},
         {"company": "Beta",  "subject": "Application update", "date_only": "2025-01-02",
          "final_label": "rejection",       "rule_label": "rejection",       "rule_confidence": 0.90,
+         "ensemble_confidence": 0.85, "ensemble_top2_gap": 0.24, "review_status": "auto_accept",
          "sentiment_label": "negative",  "sentiment_compound": -0.6,
          "extracted_role": "Analyst",    "contact_person": None,
          "contact_email": None,          "dates_mentioned": "",
          "summary": "We regret to inform you.", "email_body": "Full body rejection."},
         {"company": "Gamma", "subject": "Interview invite",   "date_only": "2025-01-03",
          "final_label": "interview",       "rule_label": "interview",       "rule_confidence": 0.85,
+         "ensemble_confidence": 0.72, "ensemble_top2_gap": 0.16, "review_status": "needs_review",
          "sentiment_label": "positive",  "sentiment_compound": 0.5,
          "extracted_role": "Data Scientist", "contact_person": "John Smith",
          "contact_email": "john@gamma.com", "dates_mentioned": "Feb 1, 2025",
          "summary": "We'd like to invite you for an interview.", "email_body": "Full body interview."},
         {"company": "Delta", "subject": "Assessment required", "date_only": "2025-01-04",
          "final_label": "action_required",  "rule_label": "action_required",  "rule_confidence": 0.80,
+         "ensemble_confidence": 0.54, "ensemble_top2_gap": 0.05, "review_status": "low_confidence",
          "sentiment_label": "neutral",   "sentiment_compound": 0.0,
          "extracted_role": "SWE",        "contact_person": None,
          "contact_email": None,          "dates_mentioned": "Jan 20, 2025",
          "summary": "Please complete your assessment.", "email_body": "Full body action."},
         {"company": "Epsilon","subject": "App received",      "date_only": "2025-01-05",
          "final_label": "in_process",      "rule_label": "in_process",      "rule_confidence": 0.70,
+         "ensemble_confidence": 0.81, "ensemble_top2_gap": 0.22, "review_status": "auto_accept",
          "sentiment_label": "neutral",   "sentiment_compound": 0.1,
          "extracted_role": None,         "contact_person": None,
          "contact_email": None,          "dates_mentioned": "",
          "summary": "We received your application.", "email_body": "Full body in process."},
         {"company": "Zeta",  "subject": "Job alert",          "date_only": "2025-01-06",
          "final_label": "unrelated",       "rule_label": "unrelated",       "rule_confidence": 0.75,
+         "ensemble_confidence": 0.67, "ensemble_top2_gap": 0.12, "review_status": "needs_review",
          "sentiment_label": "neutral",   "sentiment_compound": 0.0,
          "extracted_role": None,         "contact_person": None,
          "contact_email": None,          "dates_mentioned": "",
@@ -124,7 +130,7 @@ class TestExportToExcel:
         ws = wb["Classified Emails"]
         # Row 2 should be acceptance (green fill C6EFCE)
         cell = ws.cell(row=2, column=1)
-        assert cell.fill.start_color.rgb is not None
+        assert cell.fill.start_color.rgb == "FFC6EFCE"
 
     def test_each_category_has_distinct_color(self, sample_df, output_path):
         export_to_excel(sample_df, output_path)
@@ -142,6 +148,16 @@ class TestExportToExcel:
 
         # All 6 categories should have different fill colors
         assert len(set(fills.values())) == 6
+        assert all(color.startswith("FF") for color in fills.values())
+
+    def test_new_confidence_and_review_columns_are_exported(self, sample_df, output_path):
+        export_to_excel(sample_df, output_path)
+        wb = load_workbook(output_path)
+        ws = wb["Classified Emails"]
+        headers = [ws.cell(row=1, column=c).value for c in range(1, ws.max_column + 1)]
+        assert "Model Confidence" in headers
+        assert "Top-2 Gap" in headers
+        assert "Review Status" in headers
 
     def test_frozen_pane(self, sample_df, output_path):
         export_to_excel(sample_df, output_path)

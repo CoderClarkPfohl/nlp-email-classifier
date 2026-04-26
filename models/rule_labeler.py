@@ -43,7 +43,25 @@ REJECTION_STRONG = [
     "not be continuing", "will not be progressing",
     "not proceeding with your", "have chosen not to",
     "no longer under consideration", "not advance your candidacy",
-    "pursue other candidates", "move on with other applicants",
+    "not advance your application", "decided not to advance your application",
+    "pursue other candidates", "pursue other applicants",
+    "chosen to pursue other applicants", "move on with other applicants",
+    "selected candidates whose experience",
+    "unable to offer you this position",
+    "not be moving ahead", "will not be moving ahead",
+    "declining to proceed", "declining to proceed to the next stage",
+    "not selected for the next round",
+    "not continue with your candidacy",
+    "not selected for further consideration",
+    "closing your current application",
+    "will not continue with your candidacy",
+    "decided to continue with candidates",
+    "continue with candidates whose background",
+    "selected another applicant",
+    "not able to proceed with your candidacy",
+    "not able to proceed",
+    "closing this application",
+    "will not move forward",
 ]
 
 REJECTION_MEDIUM = [
@@ -60,6 +78,29 @@ ACCEPTANCE_PHRASES = [
     "start date is", "your start date", "onboarding",
     "compensation package", "pleased to extend",
     "thrilled to welcome you", "welcome to the team",
+    "employment offer", "extend an offer",
+    "would like to extend an offer",
+    "approved an employment offer",
+    "excited to have you join",
+    "have you join",
+    "welcoming you to the team",
+    "delighted to offer", "written offer",
+    "offer package", "extending a job offer",
+    "formal offer", "approved your formal offer",
+    "selected to join",
+    "ready to make you an offer",
+    "hiring package",
+    "offer stage",
+    "happy to send your offer letter",
+    "looking forward to having you aboard",
+    "employment agreement",
+    "move ahead with bringing you",
+    "bringing you onto",
+    "would like you to join",
+    "attached terms",
+    "proposed start timeline",
+    "welcome you as our next",
+    "join us",
 ]
 
 INTERVIEW_STRONG = [
@@ -77,6 +118,11 @@ INTERVIEW_STRONG = [
     "would like to set up a call",
     "like to discuss your application",
     "recruiter will be reaching out",
+    "would like to arrange a first conversation",
+    "would like to arrange a recruiter phone screen",
+    "would like to meet with you",
+    "speak with the hiring team",
+    "conversation request",
 ]
 
 INTERVIEW_MEDIUM = [
@@ -86,6 +132,9 @@ INTERVIEW_MEDIUM = [
     "progressed to the next", "selected for the initial",
     "shortlisted", "we were impressed",
     "like to move forward with your candidacy",
+    "first conversation", "conversation with",
+    "calendar link to choose a time",
+    "send availability",
 ]
 
 ACTION_STRONG = [
@@ -100,12 +149,46 @@ ACTION_STRONG = [
     "complete this assessment", "invited to take",
     "complete the following steps", "task for you to complete",
     "pre-employment", "background check",
+    "missing required information",
+    "candidate profile is missing",
+    "upload your updated resume",
+    "work authorization questions",
+    "cannot be reviewed further",
+    "requires a short questionnaire",
+    "finish candidate task",
+    "submit the form",
+    "need additional documents",
+    "requested documents",
+    "upload your current resume",
+    "candidate task pending",
+    "pending task",
+    "answer the screening questionnaire",
+    "screening questionnaire",
+    "application will remain paused",
+    "needs attention",
+    "required questionnaire",
+    "candidate portal task",
+    "pending task is listed",
+    "finish the screening questions",
+    "will remain on hold",
+    "documents needed",
+    "requested document",
+    "more information needed",
+    "missing a required item",
+    "requested form",
+    "submit the questionnaire",
+    "open task",
+    "keep the process active",
+    "keep the application active",
 ]
 
 ACTION_MEDIUM = [
     "next steps in the process", "complete your profile",
     "verify your identity", "provide additional",
     "we need some information", "submit your",
+    "need one more step", "need this before",
+    "before the recruiting team can proceed",
+    "before your", "can move forward",
 ]
 
 UNRELATED_PHRASES = [
@@ -122,6 +205,8 @@ UNRELATED_PHRASES = [
     "resume tips", "resume builder", "interview preparation guide",
     "salary survey", "salary trends", "job market report",
     "networking event", "webinar",
+    "virtual event", "registration is open",
+    "attending the event", "does not create or change a job application",
     "referral program", "referral bonus", "refer a friend",
     "profile views", "profile was viewed",
     "update your preferences", "update your profile",
@@ -144,10 +229,19 @@ IN_PROCESS_PHRASES = [
     "successfully applied", "under review",
     "carefully review", "reviewing your application",
     "we will review", "being reviewed",
-    "thank you for your interest", "thanks for applying",
+    "thanks for applying",
     "review your background", "review your qualifications",
     "will be in touch", "we'll reach out",
     "consider your application",
+    "profile is being reviewed",
+    "your materials",
+    "has your materials",
+    "recruiting system",
+    "reviewing profiles",
+    "automated confirmation",
+    "possible fit",
+    "someone will contact you about next steps",
+    "thank you for considering us",
 ]
 
 
@@ -177,6 +271,9 @@ def label_email(subject: str, body: str) -> Tuple[str, float]:
 
     # ── Acceptance ──
     scores["acceptance"] += _count_matches(combined, ACCEPTANCE_PHRASES) * 5.0
+    if _has_any(subj, ["offer", "offer package", "formal offer"]):
+        if scores["acceptance"] > 0:
+            scores["acceptance"] += 3.0
 
     # ── Interview ──
     scores["interview"] += _count_matches(combined, INTERVIEW_STRONG) * 4.0
@@ -207,6 +304,8 @@ def label_email(subject: str, body: str) -> Tuple[str, float]:
 
     # ── In-process (lower weight — this is the default) ──
     scores["in_process"] += _count_matches(combined, IN_PROCESS_PHRASES) * 1.5
+    if _has_any(subj, ["profile is being reviewed", "application confirmation", "we have your materials"]):
+        scores["in_process"] += 3.0
 
     # ── Determine winner ──
     best_label = max(scores, key=scores.get)

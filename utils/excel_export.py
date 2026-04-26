@@ -35,6 +35,9 @@ EXPORT_COLUMNS = [
     "final_label",
     "rule_label",
     "rule_confidence",
+    "ensemble_confidence",
+    "ensemble_top2_gap",
+    "review_status",
     "sentiment_label",
     "sentiment_compound",
     "extracted_role",
@@ -53,6 +56,9 @@ COLUMN_HEADERS = {
     "final_label": "Category",
     "rule_label": "Rule Label",
     "rule_confidence": "Rule Confidence",
+    "ensemble_confidence": "Model Confidence",
+    "ensemble_top2_gap": "Top-2 Gap",
+    "review_status": "Review Status",
     "sentiment_label": "Sentiment",
     "sentiment_compound": "Sentiment Score",
     "extracted_role": "Job Role",
@@ -65,10 +71,14 @@ COLUMN_HEADERS = {
 
 
 def _make_fill(hex_color: str) -> PatternFill:
+    if len(hex_color) == 6:
+        hex_color = f"FF{hex_color}"
     return PatternFill(start_color=hex_color, end_color=hex_color, fill_type="solid")
 
 
 def _make_font(hex_color: str, bold: bool = False, size: int = 11) -> Font:
+    if len(hex_color) == 6:
+        hex_color = f"FF{hex_color}"
     return Font(color=hex_color, bold=bold, size=size)
 
 
@@ -159,7 +169,7 @@ def export_to_excel(
             ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = 40
         elif col_name in ("company", "extracted_role", "contact_person"):
             ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = 20
-        elif col_name in ("final_label", "rule_label", "sentiment_label"):
+        elif col_name in ("final_label", "rule_label", "sentiment_label", "review_status"):
             ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = 18
         else:
             ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = 15

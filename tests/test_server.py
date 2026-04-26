@@ -12,7 +12,7 @@ import shutil
 import pytest
 import pandas as pd
 
-from app.server import create_app, UPLOAD_DIR
+from app.server import create_app, UPLOAD_DIR, _build_summary
 
 
 # ─────────────────────────────────────────────────────────────
@@ -209,6 +209,20 @@ class TestClassifyFlow:
         assert data["total"] == 30
         assert "categories" in data
         assert "sentiment" in data
+
+    def test_summary_uses_true_label_accuracy_when_available(self):
+        df = pd.DataFrame(
+            {
+                "final_label": ["acceptance", "rejection", "interview"],
+                "true_label": ["acceptance", "in_process", "interview"],
+                "ensemble_confidence": [0.9, 0.8, 0.7],
+                "sentiment_label": ["positive", "neutral", "positive"],
+            }
+        )
+        summary = _build_summary(df, {"mean_cv_accuracy": 1.0})
+        assert summary["mean_accuracy"] == 66.7
+        assert summary["accuracy_label"] == "Accuracy vs True Label"
+        assert summary["has_true_labels"] is True
 
 
 # ─────────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ from models.feature_engineering import (
     compute_cosine_features,
     compute_sentiment_features,
     compute_enhanced_features,
+    EnhancedFeatureTransformer,
 )
 
 
@@ -313,3 +314,53 @@ class TestComputeEnhancedFeatures:
         # At least some feature columns should differ meaningfully
         diffs = np.abs(acceptance_mean - rejection_mean)
         assert diffs.max() > 0.01
+
+
+class TestEnhancedFeatureTransformer:
+    def test_fit_transform_shape_matches_existing_full_features(self):
+        labels = ["acceptance"] * 5 + ["rejection"] * 5
+        df = pd.DataFrame(
+            {
+                "clean_body": ["pleased to offer welcome aboard"] * 5
+                + ["regret to inform not moving forward"] * 5,
+                "extracted_role": [None] * 10,
+                "contact_person": [None] * 10,
+                "contact_email": [None] * 10,
+                "dates_mentioned": [""] * 10,
+                "sentiment_compound": [0.8] * 5 + [-0.8] * 5,
+                "sentiment_label": ["positive"] * 5 + ["negative"] * 5,
+            }
+        )
+        transformer = EnhancedFeatureTransformer()
+        feats = transformer.fit_transform(df, labels)
+        # 2 LM + 2 cosine + 6 keyword + 4 NER + 4 sentiment = 18
+        assert feats.shape == (10, 18)
+        assert transformer.n_features_out_ == 18
+        assert np.all(feats >= 0)
+
+    def test_transform_does_not_refit_categories(self):
+        train = pd.DataFrame(
+            {
+                "clean_body": ["pleased to offer"] * 4
+                + ["regret to inform"] * 4,
+            }
+        )
+        labels = ["acceptance"] * 4 + ["rejection"] * 4
+        test = pd.DataFrame({"clean_body": ["schedule an interview"]})
+        transformer = EnhancedFeatureTransformer(include_ner=False, include_sentiment=False)
+        transformer.fit(train, labels)
+        before = transformer.categories_.copy()
+        feats = transformer.transform(test)
+        assert transformer.categories_ == before
+        assert feats.shape == (1, transformer.n_features_out_)
+
+    def test_missing_optional_columns_are_allowed(self):
+        df = pd.DataFrame(
+            {
+                "clean_body": ["offer position"] * 3 + ["not selected"] * 3,
+            }
+        )
+        labels = ["acceptance"] * 3 + ["rejection"] * 3
+        feats = EnhancedFeatureTransformer().fit_transform(df, labels)
+        # 2 LM + 2 cosine + 6 keyword; no NER or sentiment columns
+        assert feats.shape == (6, 10)

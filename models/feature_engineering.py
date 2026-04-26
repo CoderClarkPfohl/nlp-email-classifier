@@ -211,6 +211,133 @@ def compute_sentiment_features(
 
 
 # ─────────────────────────────────────────────────────────────
+#  Leakage-free enhanced feature transformer
+# ─────────────────────────────────────────────────────────────
+
+
+class EnhancedFeatureTransformer:
+    """
+    Fit/transform wrapper for enhanced features that learn from labels.
+
+    Keyword, NER, and sentiment features are row-local and can be computed
+    directly. Language-model and centroid features must be fit only on the
+    training split, otherwise cross-validation sees information from held-out
+    rows and reports optimistic metrics.
+    """
+
+    def __init__(
+        self,
+        include_lm: bool = True,
+        include_centroids: bool = True,
+        include_keywords: bool = True,
+        include_ner: bool = True,
+        include_sentiment: bool = True,
+        text_column: str = "clean_body",
+    ):
+        self.include_lm = include_lm
+        self.include_centroids = include_centroids
+        self.include_keywords = include_keywords
+        self.include_ner = include_ner
+        self.include_sentiment = include_sentiment
+        self.text_column = text_column
+
+        self.lm_ = None
+        self.centroid_tfidf_ = None
+        self.centroids_ = {}
+        self.categories_ = []
+        self.n_features_out_ = None
+        self.is_fitted_ = False
+
+    def fit(self, df_train, labels_train: List[str]) -> "EnhancedFeatureTransformer":
+        """Fit train-dependent enhanced feature components."""
+        texts = self._texts(df_train)
+        labels = list(labels_train)
+        self.categories_ = sorted(set(labels))
+
+        if self.include_lm:
+            tokenized = [tokenize(t) for t in texts]
+            self.lm_ = CategoryLanguageModels(n=2, k=0.1)
+            self.lm_.fit(tokenized, labels)
+
+        if self.include_centroids:
+            self.centroid_tfidf_ = TfidfVectorizer(
+                max_features=5000,
+                sublinear_tf=True,
+                min_df=1,
+            )
+            X_train = self.centroid_tfidf_.fit_transform(texts)
+            self.centroids_, centroid_categories = compute_category_centroids(
+                X_train, labels
+            )
+            self.categories_ = centroid_categories
+
+        self.is_fitted_ = True
+        sample = self.transform(df_train.iloc[:1] if hasattr(df_train, "iloc") else df_train[:1])
+        self.n_features_out_ = sample.shape[1]
+        return self
+
+    def transform(self, df) -> np.ndarray:
+        """Transform rows into enhanced dense features without refitting."""
+        if not self.is_fitted_:
+            raise ValueError("EnhancedFeatureTransformer must be fit before transform")
+
+        texts = self._texts(df)
+        parts = []
+
+        if self.include_lm:
+            tokenized = [tokenize(t) for t in texts]
+            lm_feats = self.lm_.perplexity_features(tokenized)
+            lm_feats = np.nan_to_num(lm_feats, nan=0.0, posinf=0.0, neginf=0.0)
+            parts.append(lm_feats)
+
+        if self.include_centroids:
+            X = self.centroid_tfidf_.transform(texts)
+            parts.append(compute_cosine_features(X, self.centroids_, self.categories_))
+
+        if self.include_keywords:
+            parts.append(compute_keyword_features(texts))
+
+        if self.include_ner and self._has_columns(
+            df, ["extracted_role", "contact_person", "contact_email", "dates_mentioned"]
+        ):
+            parts.append(
+                compute_ner_features(
+                    df["extracted_role"].tolist(),
+                    df["contact_person"].tolist(),
+                    df["contact_email"].tolist(),
+                    df["dates_mentioned"].tolist(),
+                )
+            )
+
+        if self.include_sentiment and self._has_columns(
+            df, ["sentiment_compound", "sentiment_label"]
+        ):
+            parts.append(
+                compute_sentiment_features(
+                    df["sentiment_compound"].tolist(),
+                    df["sentiment_label"].tolist(),
+                )
+            )
+
+        if not parts:
+            return np.zeros((len(texts), 0), dtype=np.float64)
+        return np.hstack(parts)
+
+    def fit_transform(self, df_train, labels_train: List[str]) -> np.ndarray:
+        """Fit on training rows and return their features."""
+        return self.fit(df_train, labels_train).transform(df_train)
+
+    def _texts(self, df) -> List[str]:
+        if self.text_column not in df.columns:
+            raise ValueError(f"DataFrame is missing required column: {self.text_column}")
+        return df[self.text_column].fillna("").astype(str).tolist()
+
+    @staticmethod
+    def _has_columns(df, columns: List[str]) -> bool:
+        return all(c in df.columns for c in columns)
+
+
+# ─────────────────────────────────────────────────────────────
 #  Combined enhanced features
 # ─────────────────────────────────────────────────────────────
 

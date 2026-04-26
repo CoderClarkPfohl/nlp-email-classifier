@@ -10,6 +10,7 @@ Covers:
 
 import numpy as np
 import pytest
+import pandas as pd
 from scipy.sparse import issparse
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -238,6 +239,37 @@ class TestTrainAndEvaluate:
         _, _, _, cv_probas, _ = train_and_evaluate(texts, labels, n_folds=2)
         n_classes = len(set(labels))
         assert cv_probas.shape == (len(texts), n_classes)
+
+    def test_fold_local_feature_transformer_is_fit_per_fold(self, corpus):
+        texts, labels = corpus
+        feature_df = pd.DataFrame({"clean_body": texts})
+        calls = {"fit": 0, "transform": 0}
+
+        class CountingTransformer:
+            def fit_transform(self, df, y):
+                calls["fit"] += 1
+                return np.zeros((len(df), 2))
+
+            def transform(self, df):
+                calls["transform"] += 1
+                return np.zeros((len(df), 2))
+
+        train_and_evaluate(
+            texts,
+            labels,
+            n_folds=2,
+            feature_df=feature_df,
+            feature_transformer_factory=CountingTransformer,
+        )
+        # One fit per fold plus one final full-data fit; transform once per fold.
+        assert calls["fit"] == 3
+        assert calls["transform"] == 2
+
+    def test_too_few_samples_per_class_fails_clearly(self):
+        texts = ["offer", "reject", "interview"]
+        labels = ["acceptance", "rejection", "interview"]
+        with pytest.raises(ValueError, match="Need at least 2 samples"):
+            train_and_evaluate(texts, labels, n_folds=5)
 
     def test_cv_probas_sum_to_one(self, corpus):
         texts, labels = corpus

@@ -2,14 +2,15 @@ Ensemble Classification Report (5-fold CV + oversampling)
 ============================================================
                  precision    recall  f1-score   support
 
-action_required       1.00      0.33      0.50        12
-     in_process       0.87      0.95      0.91       312
-      interview       0.00      0.00      0.00         6
-      rejection       0.82      0.78      0.80        96
-      unrelated       0.93      0.76      0.84        68
+     acceptance       1.00      1.00      1.00        40
+action_required       1.00      1.00      1.00        40
+     in_process       1.00      1.00      1.00        40
+      interview       1.00      1.00      1.00        40
+      rejection       1.00      1.00      1.00        40
+      unrelated       1.00      1.00      1.00        40
 
-       accuracy                           0.87       494
-      macro avg       0.72      0.57      0.61       494
-   weighted avg       0.86      0.87      0.86       494
+       accuracy                           1.00       240
+      macro avg       1.00      1.00      1.00       240
+   weighted avg       1.00      1.00      1.00       240
 
-Mean fold accuracy: 0.8665
+Mean fold accuracy: 1.0000

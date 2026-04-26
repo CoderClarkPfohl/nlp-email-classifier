@@ -35,7 +35,7 @@
             <div class="card text-center shadow-sm h-100">
                 <div class="card-body">
                     <div class="display-5 fw-bold text-success">{{ summary.mean_accuracy }}%</div>
-                    <div class="text-secondary">Ensemble Accuracy (CV)</div>
+                    <div class="text-secondary">{{ summary.accuracy_label or 'Pseudo-label CV Agreement' }}</div>
                 </div>
             </div>
         </div>
@@ -87,7 +87,7 @@
 
     <!-- Category badges -->
     <div class="card shadow-sm mb-4">
-        <div class="card-header fw-bold">Category Breakdown</div>
+        <div class="card-header fw-bold">Predicted Category Breakdown</div>
         <div class="card-body">
             <div class="row g-2">
                 {% for cat in summary.categories %}
@@ -120,8 +120,17 @@
                         {% if preview and preview[0].get('subject') is not none %}
                         <th>Subject</th>
                         {% endif %}
+                        {% if preview and preview[0].get('true_label') is not none %}
+                        <th>True Label</th>
+                        {% endif %}
                         <th>Category</th>
+                        {% if preview and preview[0].get('model_matches_true') is not none %}
+                        <th>Correct</th>
+                        {% endif %}
                         <th>Confidence</th>
+                        {% if preview and preview[0].get('review_status') is not none %}
+                        <th>Review</th>
+                        {% endif %}
                         {% if preview and preview[0].get('sentiment_label') is not none %}
                         <th>Sentiment</th>
                         {% endif %}
@@ -139,13 +148,32 @@
                         {% if row.get('subject') is not none %}
                         <td class="text-truncate" style="max-width:250px">{{ row.subject or '' }}</td>
                         {% endif %}
+                        {% if row.get('true_label') is not none %}
+                        <td>{{ row.true_label or '' }}</td>
+                        {% endif %}
                         <td>
                             <span class="badge"
                                   style="background:#{{ colors.fill }};color:#{{ colors.font }}">
                                 {{ row.final_label }}
                             </span>
                         </td>
+                        {% if row.get('model_matches_true') is not none %}
+                        <td>
+                            {% if row.model_matches_true %}
+                            <span class="text-success">yes</span>
+                            {% else %}
+                            <span class="text-danger">no</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
                         <td>{{ "%.0f"|format((row.ensemble_confidence or 0) * 100) }}%</td>
+                        {% if row.get('review_status') is not none %}
+                        <td>
+                            <span class="badge text-bg-light border">
+                                {{ row.review_status or '' }}
+                            </span>
+                        </td>
+                        {% endif %}
                         {% if row.get('sentiment_label') is not none %}
                         <td>
                             {% if row.sentiment_label == 'positive' %}

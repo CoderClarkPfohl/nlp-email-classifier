@@ -39,7 +39,8 @@ from utils.excel_export import export_to_excel, CATEGORY_COLORS
 from models.rule_labeler import label_email
 from models.sentiment import compute_sentiment
 from models.svm_classifier import train_and_evaluate
-from models.feature_engineering import compute_enhanced_features
+from models.feature_engineering import EnhancedFeatureTransformer
+from utils.review_routing import review_statuses_from_probas
 
 import matplotlib
 matplotlib.use("Agg")
@@ -129,18 +130,21 @@ def run_pipeline(df: pd.DataFrame) -> tuple:
         lambda t: summarize_email(t, max_sentences=2)
     )
 
-    # Enhanced NLP features (Topics 2-6)
-    extra_features = compute_enhanced_features(df)
-
-    # Ensemble classifier with enhanced features + stemming
+    # Ensemble classifier with fold-local enhanced features + stemming
     tfidf, ensemble, cv_preds, cv_probas, metrics = train_and_evaluate(
         df["clean_body"].tolist(), df["rule_label"].tolist(), n_folds=5,
-        extra_features=extra_features, use_stemming=True,
+        use_stemming=True,
+        feature_df=df,
+        feature_transformer_factory=EnhancedFeatureTransformer,
     )
     df["final_label"] = cv_preds
     df["ensemble_confidence"] = cv_probas.max(axis=1).round(4)
     sorted_p = np.sort(cv_probas, axis=1)
     df["ensemble_top2_gap"] = (sorted_p[:, -1] - sorted_p[:, -2]).round(4)
+    df["review_status"] = review_statuses_from_probas(cv_probas)
+    if "true_label" in df.columns:
+        true_labels = df["true_label"].fillna("").astype(str).str.strip()
+        df["model_matches_true"] = df["final_label"].astype(str) == true_labels
 
     return df, metrics
 
@@ -162,6 +166,19 @@ def _build_summary(df: pd.DataFrame, metrics: dict) -> dict:
         })
 
     sentiment_counts = df["sentiment_label"].value_counts().to_dict()
+    has_true_labels = (
+        "true_label" in df.columns
+        and df["true_label"].notna().any()
+        and (df["true_label"].astype(str).str.strip() != "").any()
+    )
+    has_true_labels = bool(has_true_labels)
+    if has_true_labels:
+        true_labels = df["true_label"].fillna("").astype(str).str.strip()
+        mean_accuracy = round((df["final_label"].astype(str) == true_labels).mean() * 100, 1)
+        accuracy_label = "Accuracy vs True Label"
+    else:
+        mean_accuracy = round(metrics["mean_cv_accuracy"] * 100, 1)
+        accuracy_label = "Pseudo-label CV Agreement"
 
     # Sentiment breakdown per category
     cross = {}
@@ -171,9 +188,14 @@ def _build_summary(df: pd.DataFrame, metrics: dict) -> dict:
 
     return {
         "total": total,
-        "mean_accuracy": round(metrics["mean_cv_accuracy"] * 100, 1),
+        "mean_accuracy": mean_accuracy,
+        "accuracy_label": accuracy_label,
+        "has_true_labels": has_true_labels,
         "mean_confidence": round(df["ensemble_confidence"].mean() * 100, 1),
         "categories": categories,
+        "true_categories": (
+            df["true_label"].value_counts().to_dict() if has_true_labels else {}
+        ),
         "sentiment": sentiment_counts,
         "sentiment_cross": cross,
     }
@@ -243,8 +265,8 @@ def classify():
     # Save outputs
     output_cols = [
         "company", "subject", "date_only", "email_body",
-        "rule_label", "rule_confidence", "final_label",
-        "ensemble_confidence", "ensemble_top2_gap",
+        "true_label", "rule_label", "rule_confidence", "final_label", "model_matches_true",
+        "ensemble_confidence", "ensemble_top2_gap", "review_status",
         "sentiment_label", "sentiment_compound",
         "extracted_role", "contact_person", "contact_email",
         "dates_mentioned", "summary",
@@ -263,7 +285,8 @@ def classify():
         json.dump(summary, f)
 
     # Save preview rows (first 50) for the results page
-    preview_cols = ["company", "subject", "final_label", "ensemble_confidence",
+    preview_cols = ["company", "subject", "true_label", "final_label",
+                    "model_matches_true", "ensemble_confidence", "review_status",
                     "sentiment_label", "summary"]
     preview_cols = [c for c in preview_cols if c in df.columns]
     preview = df[preview_cols].head(50).to_dict(orient="records")

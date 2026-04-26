@@ -43,7 +43,8 @@ from utils.excel_export import export_to_excel
 from models.rule_labeler import label_email
 from models.sentiment import compute_sentiment
 from models.svm_classifier import train_and_evaluate
-from models.feature_engineering import compute_enhanced_features
+from models.feature_engineering import EnhancedFeatureTransformer
+from utils.review_routing import review_statuses_from_probas
 
 
 LABELS = ["acceptance", "rejection", "interview", "action_required",
@@ -181,14 +182,13 @@ def run_ensemble(df: pd.DataFrame, results_dir: str) -> pd.DataFrame:
     texts = df["clean_body"].tolist()
     labels = df["rule_label"].tolist()
 
-    # Compute enhanced NLP features (Topics 2-6)
-    print("       Computing enhanced features (LM + cosine + keywords + NER + sentiment)...")
-    extra_features = compute_enhanced_features(df)
-    print(f"       Feature vector: TF-IDF (stemmed) + {extra_features.shape[1]} enhanced features")
+    print("       Feature vector: fold-local TF-IDF (stemmed) + enhanced NLP features")
 
     tfidf, ensemble, cv_preds, cv_probas, metrics = train_and_evaluate(
         texts, labels, n_folds=5,
-        extra_features=extra_features, use_stemming=True,
+        use_stemming=True,
+        feature_df=df,
+        feature_transformer_factory=EnhancedFeatureTransformer,
     )
 
     df["ensemble_prediction"] = cv_preds
@@ -200,6 +200,7 @@ def run_ensemble(df: pd.DataFrame, results_dir: str) -> pd.DataFrame:
     # Margin between top-1 and top-2 class probabilities
     sorted_probas = np.sort(cv_probas, axis=1)
     df["ensemble_top2_gap"] = (sorted_probas[:, -1] - sorted_probas[:, -2]).round(4)
+    df["review_status"] = review_statuses_from_probas(cv_probas)
 
     print("\n" + "=" * 60)
     print("  Ensemble Classification Report (5-fold CV + oversampling)")
@@ -528,11 +529,51 @@ def main():
                         help="Output directory (default: results/)")
     parser.add_argument("--validate", action="store_true",
                         help="Run the 200-email category validation and exit")
+    parser.add_argument("--make-gold-template", action="store_true",
+                        help="Create a balanced CSV template for manual gold labeling")
+    parser.add_argument("--gold", type=str, default=None,
+                        help="Evaluate against a manually labeled gold CSV")
+    parser.add_argument("--gold-sample-size", type=int, default=100,
+                        help="Rows to sample for --make-gold-template")
+    parser.add_argument("--ablation", action="store_true",
+                        help="Run feature ablation experiments against --gold")
+    parser.add_argument("--export-errors", action="store_true",
+                        help="Export misclassified gold examples")
     args = parser.parse_args()
 
     if args.validate:
         from validate_categories import main as run_validate
         run_validate()
+        return
+
+    if args.make_gold_template:
+        if not args.input:
+            parser.error("--input is required with --make-gold-template")
+        from gold_workflow import make_gold_template
+        template = make_gold_template(
+            args.input,
+            output_path=os.path.join("data", "gold_label_review_template.csv"),
+            sample_size=args.gold_sample_size,
+        )
+        print(f"Gold review template saved: data/gold_label_review_template.csv ({len(template)} rows)")
+        return
+
+    if args.ablation:
+        if not args.gold:
+            parser.error("--gold is required with --ablation")
+        from experiments.run_ablation import run_ablation
+        results = run_ablation(args.gold, results_dir=args.output)
+        print(results.to_string(index=False))
+        return
+
+    if args.gold:
+        from gold_workflow import evaluate_gold
+        df_gold = evaluate_gold(
+            args.gold,
+            results_dir=args.output,
+            export_errors=args.export_errors,
+        )
+        print(f"Gold evaluation complete: {len(df_gold)} rows → {args.output}/")
         return
 
     if not args.input:
@@ -571,7 +612,7 @@ def main():
     output_cols = [
         "company", "subject", "date_only", "email_body",
         "rule_label", "rule_confidence", "final_label",
-        "ensemble_confidence", "ensemble_top2_gap",
+        "ensemble_confidence", "ensemble_top2_gap", "review_status",
         "sentiment_label", "sentiment_compound",
         "extracted_role", "contact_person", "contact_email",
         "dates_mentioned", "summary",
