@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLP Email Classifier</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+          rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <h1 class="mb-2">NLP Email Classifier</h1>
+            <p class="text-secondary mb-4">
+                Upload a CSV of job application emails. The pipeline will classify
+                each email into one of six categories, run sentiment analysis,
+                extract entities, and generate a color-coded Excel report.
+            </p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else 'info' }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('classify') }}"
+                          enctype="multipart/form-data" id="upload-form">
+
+                        <div id="drop-zone" class="drop-zone mb-3">
+                            <div class="drop-zone-text">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+                                     fill="currentColor" class="mb-2 text-secondary"
+                                     viewBox="0 0 16 16">
+                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1
+                                             1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0
+                                             1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1
+                                             .5-.5"/>
+                                    <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0
+                                             1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1
+                                             0V2.707L5.354 4.854a.5.5 0 1
+                                             1-.708-.708z"/>
+                                </svg>
+                                <p class="mb-1">Drag &amp; drop a CSV file here</p>
+                                <p class="text-secondary small mb-0">or click to browse</p>
+                            </div>
+                            <input type="file" name="file" id="file-input"
+                                   accept=".csv" class="d-none">
+                        </div>
+
+                        <div id="file-name" class="mb-3 text-success fw-medium d-none"></div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100"
+                                id="submit-btn" disabled>
+                            Classify Emails
+                        </button>
+                    </form>
+
+                    <div id="spinner" class="text-center py-4 d-none">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-secondary">Running NLP pipeline&hellip; this may take 10-30 seconds.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title">CSV Requirements</h6>
+                    <ul class="small text-secondary mb-0">
+                        <li><strong>Required column:</strong> <code>email_body</code></li>
+                        <li><strong>Optional columns:</strong> <code>company</code>,
+                            <code>subject</code>, <code>date_only</code></li>
+                        <li>One email per row. The pipeline handles deduplication and empty rows.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title">Categories</h6>
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        <span class="badge" style="background:#C6EFCE;color:#006100">acceptance</span>
+                        <span class="badge" style="background:#FFC7CE;color:#9C0006">rejection</span>
+                        <span class="badge" style="background:#BDD7EE;color:#1F4E79">interview</span>
+                        <span class="badge" style="background:#FCE4D6;color:#974706">action_required</span>
+                        <span class="badge" style="background:#FFF2CC;color:#7F6000">in_process</span>
+                        <span class="badge" style="background:#D9D9D9;color:#404040">unrelated</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const fileName = document.getElementById('file-name');
+const submitBtn = document.getElementById('submit-btn');
+const form = document.getElementById('upload-form');
+const spinner = document.getElementById('spinner');
+
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+});
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('drag-over');
+});
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        showFile(e.dataTransfer.files[0]);
+    }
+});
+
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) showFile(fileInput.files[0]);
+});
+
+function showFile(f) {
+    if (!f.name.endsWith('.csv')) {
+        alert('Please upload a .csv file.');
+        return;
+    }
+    fileName.textContent = f.name + ' (' + (f.size / 1024).toFixed(0) + ' KB)';
+    fileName.classList.remove('d-none');
+    submitBtn.disabled = false;
+}
+
+form.addEventListener('submit', () => {
+    submitBtn.disabled = true;
+    submitBtn.classList.add('d-none');
+    spinner.classList.remove('d-none');
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

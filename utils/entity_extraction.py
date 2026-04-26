@@ -79,6 +79,9 @@ def extract_contact_email(text: str) -> Optional[str]:
     return emails[0] if emails else None
 
 
+_MAX_BODY_CHARS = 5000  # cap to keep regex runtime predictable on huge emails
+
+
 def extract_entities(text: str, company: str = "") -> Dict:
     """
     Run all entity extractors on a single email body.
@@ -94,6 +97,7 @@ def extract_entities(text: str, company: str = "") -> Dict:
     -------
     dict with keys: company, job_role, contact_person, contact_email, dates
     """
+    text = text[:_MAX_BODY_CHARS]
     return {
         "company": company if company else None,
         "job_role": extract_job_role(text),

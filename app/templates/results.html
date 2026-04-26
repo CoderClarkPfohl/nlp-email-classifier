@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results — NLP Email Classifier</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+          rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1">Classification Results</h1>
+            <span class="text-secondary">{{ summary.total }} emails processed</span>
+        </div>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Classify Another</a>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="display-5 fw-bold text-primary">{{ summary.total }}</div>
+                    <div class="text-secondary">Emails</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="display-5 fw-bold text-success">{{ summary.mean_accuracy }}%</div>
+                    <div class="text-secondary">Ensemble Accuracy (CV)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body">
+                    <div class="display-5 fw-bold" style="color:#7F6000">{{ summary.mean_confidence }}%</div>
+                    <div class="text-secondary">Mean Confidence</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Downloads -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <a href="{{ url_for('download', session_id=session_id, filetype='xlsx') }}"
+               class="btn btn-success btn-lg w-100 shadow-sm">
+                Download Excel (color-coded)
+            </a>
+        </div>
+        <div class="col-md-6">
+            <a href="{{ url_for('download', session_id=session_id, filetype='csv') }}"
+               class="btn btn-outline-primary btn-lg w-100 shadow-sm">
+                Download CSV (flat)
+            </a>
+        </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header fw-bold">Category Distribution</div>
+                <div class="card-body">
+                    <canvas id="catChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header fw-bold">Sentiment Overview</div>
+                <div class="card-body">
+                    <canvas id="sentChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category badges -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header fw-bold">Category Breakdown</div>
+        <div class="card-body">
+            <div class="row g-2">
+                {% for cat in summary.categories %}
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="p-3 rounded text-center"
+                         style="background:{{ cat.fill }};color:{{ cat.font }}">
+                        <div class="fw-bold fs-4">{{ cat.count }}</div>
+                        <div class="small">{{ cat.name }}</div>
+                        <div class="small fw-light">{{ cat.pct }}%</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview table -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header fw-bold">
+            Preview (first {{ preview|length }} emails)
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        {% if preview and preview[0].get('company') is not none %}
+                        <th>Company</th>
+                        {% endif %}
+                        {% if preview and preview[0].get('subject') is not none %}
+                        <th>Subject</th>
+                        {% endif %}
+                        <th>Category</th>
+                        <th>Confidence</th>
+                        {% if preview and preview[0].get('sentiment_label') is not none %}
+                        <th>Sentiment</th>
+                        {% endif %}
+                        <th>Summary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in preview %}
+                    {% set colors = category_colors.get(row.final_label, {"fill": "FFFFFF", "font": "000000"}) %}
+                    <tr>
+                        <td class="text-secondary">{{ loop.index }}</td>
+                        {% if row.get('company') is not none %}
+                        <td>{{ row.company or '' }}</td>
+                        {% endif %}
+                        {% if row.get('subject') is not none %}
+                        <td class="text-truncate" style="max-width:250px">{{ row.subject or '' }}</td>
+                        {% endif %}
+                        <td>
+                            <span class="badge"
+                                  style="background:#{{ colors.fill }};color:#{{ colors.font }}">
+                                {{ row.final_label }}
+                            </span>
+                        </td>
+                        <td>{{ "%.0f"|format((row.ensemble_confidence or 0) * 100) }}%</td>
+                        {% if row.get('sentiment_label') is not none %}
+                        <td>
+                            {% if row.sentiment_label == 'positive' %}
+                            <span class="text-success">{{ row.sentiment_label }}</span>
+                            {% elif row.sentiment_label == 'negative' %}
+                            <span class="text-danger">{{ row.sentiment_label }}</span>
+                            {% else %}
+                            <span class="text-secondary">{{ row.sentiment_label }}</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                        <td class="text-truncate" style="max-width:350px">{{ (row.summary or '')[:120] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// Category doughnut chart
+const catData = {{ summary.categories | tojson }};
+new Chart(document.getElementById('catChart'), {
+    type: 'doughnut',
+    data: {
+        labels: catData.map(c => c.name),
+        datasets: [{
+            data: catData.map(c => c.count),
+            backgroundColor: catData.map(c => c.fill),
+            borderColor: '#fff',
+            borderWidth: 2,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'right' },
+        }
+    }
+});
+
+// Sentiment bar chart
+const sentData = {{ summary.sentiment | tojson }};
+const sentColors = { positive: '#2ecc71', neutral: '#95a5a6', negative: '#e74c3c' };
+const sentLabels = Object.keys(sentData);
+new Chart(document.getElementById('sentChart'), {
+    type: 'bar',
+    data: {
+        labels: sentLabels.map(s => s.charAt(0).toUpperCase() + s.slice(1)),
+        datasets: [{
+            data: sentLabels.map(s => sentData[s]),
+            backgroundColor: sentLabels.map(s => sentColors[s] || '#ccc'),
+            borderRadius: 4,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Count' } },
+        }
+    }
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

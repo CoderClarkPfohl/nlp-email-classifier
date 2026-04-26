@@ -74,6 +74,9 @@ def score_sentence(sentence: str, position: int, total: int) -> float:
     return score
 
 
+_MAX_BODY_CHARS = 5000  # cap to keep sentence-scoring fast on huge emails
+
+
 def summarize_email(text: str, max_sentences: int = 3) -> str:
     """
     Produce an extractive summary of a job application email.
@@ -89,7 +92,10 @@ def summarize_email(text: str, max_sentences: int = 3) -> str:
     -------
     str : The summary composed of top-scored sentences in original order.
     """
-    if not text or len(text) < 30:
+    if not text:
+        return text
+    text = text[:_MAX_BODY_CHARS]
+    if len(text) < 30:
         return text
 
     sentences = split_sentences(text)

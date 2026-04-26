@@ -132,14 +132,17 @@ def train_and_evaluate(
     texts: List[str],
     labels: List[str],
     n_folds: int = 5,
-) -> Tuple[object, np.ndarray, Dict]:
+) -> Tuple[object, object, np.ndarray, np.ndarray, Dict]:
     """
     Train the ensemble pipeline with oversampling and evaluate via
     stratified k-fold cross-validation.
 
     Returns
     -------
-    (tfidf, ensemble, predictions, metrics_dict)
+    (tfidf, ensemble, cv_preds, cv_probas, metrics_dict)
+
+    cv_probas : ndarray of shape (n_samples, n_classes)
+        Per-class probabilities for each sample from its held-out fold.
     """
     tfidf = build_tfidf()
 
@@ -200,7 +203,7 @@ def train_and_evaluate(
         "mean_cv_accuracy": np.mean(fold_reports),
     }
 
-    return tfidf, final_ensemble, cv_preds, metrics
+    return tfidf, final_ensemble, cv_preds, cv_probas, metrics
 
 
 def predict(tfidf, ensemble, texts: List[str]) -> np.ndarray:
