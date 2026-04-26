@@ -12,12 +12,7 @@
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-lg-7">
-            <h1 class="mb-2">NLP Email Classifier</h1>
-            <p class="text-secondary mb-4">
-                Upload a CSV of job application emails. The pipeline will classify
-                each email into one of six categories, run sentiment analysis,
-                extract entities, and generate a color-coded Excel report.
-            </p>
+            <h1 class="mb-4 text-center">NLP Email Classifier</h1>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -73,25 +68,13 @@
 
             <div class="card mt-4 shadow-sm">
                 <div class="card-body">
-                    <h6 class="card-title">CSV Requirements</h6>
-                    <ul class="small text-secondary mb-0">
-                        <li><strong>Required column:</strong> <code>email_body</code></li>
-                        <li><strong>Optional columns:</strong> <code>company</code>,
-                            <code>subject</code>, <code>date_only</code></li>
-                        <li>One email per row. The pipeline handles deduplication and empty rows.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="card mt-3 shadow-sm">
-                <div class="card-body">
                     <h6 class="card-title">Categories</h6>
                     <div class="d-flex flex-wrap gap-2 mt-2">
                         <span class="badge" style="background:#C6EFCE;color:#006100">acceptance</span>
                         <span class="badge" style="background:#FFC7CE;color:#9C0006">rejection</span>
                         <span class="badge" style="background:#BDD7EE;color:#1F4E79">interview</span>
-                        <span class="badge" style="background:#FCE4D6;color:#974706">action_required</span>
-                        <span class="badge" style="background:#FFF2CC;color:#7F6000">in_process</span>
+                        <span class="badge" style="background:#FCE4D6;color:#974706">Action Required</span>
+                        <span class="badge" style="background:#FFF2CC;color:#7F6000">In Progress</span>
                         <span class="badge" style="background:#D9D9D9;color:#404040">unrelated</span>
                     </div>
                 </div>

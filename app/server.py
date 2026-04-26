@@ -35,7 +35,7 @@ from flask import (
 from utils.preprocessing import clean_email_body, preprocess_for_model
 from utils.entity_extraction import extract_entities
 from utils.summarizer import summarize_email
-from utils.excel_export import export_to_excel, CATEGORY_COLORS
+from utils.excel_export import export_to_excel, CATEGORY_COLORS, DISPLAY_NAMES
 from models.rule_labeler import label_email
 from models.sentiment import compute_sentiment
 from models.svm_classifier import train_and_evaluate
@@ -158,7 +158,7 @@ def _build_summary(df: pd.DataFrame, metrics: dict) -> dict:
         cnt = label_counts[cat]
         colors = CATEGORY_COLORS.get(cat, {"fill": "FFFFFF", "font": "000000"})
         categories.append({
-            "name": cat,
+            "name": DISPLAY_NAMES.get(cat, cat),
             "count": cnt,
             "pct": round(cnt / total * 100, 1),
             "fill": f"#{colors['fill']}",
@@ -318,6 +318,7 @@ def results(session_id):
         summary=summary,
         preview=preview,
         category_colors=CATEGORY_COLORS,
+        display_names=DISPLAY_NAMES,
     )
 
 

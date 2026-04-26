@@ -7,7 +7,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
           rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="container py-4">
@@ -62,26 +61,6 @@
                class="btn btn-outline-primary btn-lg w-100 shadow-sm">
                 Download CSV (flat)
             </a>
-        </div>
-    </div>
-
-    <!-- Charts row -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header fw-bold">Category Distribution</div>
-                <div class="card-body">
-                    <canvas id="catChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header fw-bold">Sentiment Overview</div>
-                <div class="card-body">
-                    <canvas id="sentChart"></canvas>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -154,7 +133,7 @@
                         <td>
                             <span class="badge"
                                   style="background:#{{ colors.fill }};color:#{{ colors.font }}">
-                                {{ row.final_label }}
+                                {{ display_names.get(row.final_label, row.final_label) }}
                             </span>
                         </td>
                         {% if row.get('model_matches_true') is not none %}
@@ -195,51 +174,6 @@
 
 </div>
 
-<script>
-// Category doughnut chart
-const catData = {{ summary.categories | tojson }};
-new Chart(document.getElementById('catChart'), {
-    type: 'doughnut',
-    data: {
-        labels: catData.map(c => c.name),
-        datasets: [{
-            data: catData.map(c => c.count),
-            backgroundColor: catData.map(c => c.fill),
-            borderColor: '#fff',
-            borderWidth: 2,
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: { position: 'right' },
-        }
-    }
-});
-
-// Sentiment bar chart
-const sentData = {{ summary.sentiment | tojson }};
-const sentColors = { positive: '#2ecc71', neutral: '#95a5a6', negative: '#e74c3c' };
-const sentLabels = Object.keys(sentData);
-new Chart(document.getElementById('sentChart'), {
-    type: 'bar',
-    data: {
-        labels: sentLabels.map(s => s.charAt(0).toUpperCase() + s.slice(1)),
-        datasets: [{
-            data: sentLabels.map(s => sentData[s]),
-            backgroundColor: sentLabels.map(s => sentColors[s] || '#ccc'),
-            borderRadius: 4,
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-            y: { beginAtZero: true, title: { display: true, text: 'Count' } },
-        }
-    }
-});
-</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

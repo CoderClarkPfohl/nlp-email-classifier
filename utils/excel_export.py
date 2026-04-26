@@ -11,6 +11,7 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.chart import PieChart, BarChart, Reference
 
 
 # Category -> (fill hex, font hex)
@@ -25,6 +26,15 @@ CATEGORY_COLORS: Dict[str, Dict[str, str]] = {
 }
 
 DEFAULT_COLOR = {"fill": "FFFFFF", "font": "000000"}
+
+DISPLAY_NAMES: Dict[str, str] = {
+    "action_required": "Action Required",
+    "in_process": "In Progress",
+    "acceptance": "Acceptance",
+    "rejection": "Rejection",
+    "interview": "Interview",
+    "unrelated": "Unrelated",
+}
 
 # Columns to include in the Excel output (in order).
 # Falls back gracefully if a column doesn't exist in the DataFrame.
@@ -186,6 +196,10 @@ def export_to_excel(
     # ── Summary sheet ──
     _add_summary_sheet(wb, df, label_column)
 
+    # ── Chart sheets ──
+    _add_category_chart_sheet(wb, df, label_column)
+    _add_sentiment_chart_sheet(wb, df)
+
     # Write
     os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
     wb.save(output_path)
@@ -214,10 +228,11 @@ def _add_legend_sheet(wb: Workbook):
     }
 
     for row_idx, (cat, colors) in enumerate(CATEGORY_COLORS.items(), start=4):
-        ws.cell(row=row_idx, column=1, value=cat).font = _make_font(colors["font"], bold=True)
+        display = DISPLAY_NAMES.get(cat, cat)
+        ws.cell(row=row_idx, column=1, value=display).font = _make_font(colors["font"], bold=True)
         ws.cell(row=row_idx, column=2, value=descriptions.get(cat, ""))
 
-        sample = ws.cell(row=row_idx, column=3, value=f"  {cat}  ")
+        sample = ws.cell(row=row_idx, column=3, value=f"  {display}  ")
         sample.fill = _make_fill(colors["fill"])
         sample.font = _make_font(colors["font"])
 
@@ -255,7 +270,7 @@ def _add_summary_sheet(wb: Workbook, df: pd.DataFrame, label_column: str):
         colors = CATEGORY_COLORS.get(cat, DEFAULT_COLOR)
         row_fill = _make_fill(colors["fill"])
 
-        cell_cat = ws.cell(row=row_idx, column=1, value=cat)
+        cell_cat = ws.cell(row=row_idx, column=1, value=DISPLAY_NAMES.get(cat, cat))
         cell_cat.fill = row_fill
         cell_cat.font = _make_font(colors["font"], bold=True)
 
@@ -321,7 +336,7 @@ def _add_summary_sheet(wb: Workbook, df: pd.DataFrame, label_column: str):
         for row_offset, (cat, row_data) in enumerate(xtab.iterrows(), start=1):
             data_row = header_row + row_offset
             colors = CATEGORY_COLORS.get(cat, DEFAULT_COLOR)
-            cat_cell = ws.cell(row=data_row, column=1, value=cat)
+            cat_cell = ws.cell(row=data_row, column=1, value=DISPLAY_NAMES.get(cat, cat))
             cat_cell.fill = _make_fill(colors["fill"])
             cat_cell.font = _make_font(colors["font"], bold=True)
 
@@ -344,3 +359,65 @@ def _add_summary_sheet(wb: Workbook, df: pd.DataFrame, label_column: str):
     ws.column_dimensions["D"].width = 14
     ws.column_dimensions["E"].width = 14
     ws.column_dimensions["F"].width = 12
+
+
+def _add_category_chart_sheet(wb: Workbook, df: pd.DataFrame, label_column: str):
+    """Append a 'Category Chart' sheet with a pie chart of category distribution."""
+    ws = wb.create_sheet(title="Category Chart")
+
+    counts = df[label_column].value_counts()
+    ws.cell(row=1, column=1, value="Category")
+    ws.cell(row=1, column=2, value="Count")
+    for i, (cat, count) in enumerate(counts.items(), start=2):
+        ws.cell(row=i, column=1, value=DISPLAY_NAMES.get(cat, cat))
+        ws.cell(row=i, column=2, value=int(count))
+
+    n = len(counts)
+    pie = PieChart()
+    labels = Reference(ws, min_col=1, min_row=2, max_row=n + 1)
+    data = Reference(ws, min_col=2, min_row=1, max_row=n + 1)
+    pie.add_data(data, titles_from_data=True)
+    pie.set_categories(labels)
+    pie.title = "Category Distribution"
+    pie.style = 10
+
+    ws.add_chart(pie, "D2")
+    ws.column_dimensions["A"].width = 20
+    ws.column_dimensions["B"].width = 10
+
+
+def _add_sentiment_chart_sheet(wb: Workbook, df: pd.DataFrame):
+    """Append a 'Sentiment Chart' sheet with a bar chart of sentiment distribution."""
+    ws = wb.create_sheet(title="Sentiment Chart")
+
+    if "sentiment_label" not in df.columns or df["sentiment_label"].isna().all():
+        ws.cell(row=1, column=1, value="No sentiment data available")
+        return
+
+    counts = df["sentiment_label"].value_counts()
+    sent_order = [s for s in ["positive", "neutral", "negative"] if s in counts.index]
+    other = [s for s in counts.index if s not in sent_order]
+    ordered = sent_order + other
+
+    ws.cell(row=1, column=1, value="Sentiment")
+    ws.cell(row=1, column=2, value="Count")
+    for i, sent in enumerate(ordered, start=2):
+        ws.cell(row=i, column=1, value=sent.capitalize())
+        ws.cell(row=i, column=2, value=int(counts.get(sent, 0)))
+
+    n = len(ordered)
+    bar = BarChart()
+    bar.type = "col"
+    bar.title = "Sentiment Overview"
+    bar.y_axis.title = "Count"
+    bar.x_axis.title = "Sentiment"
+    bar.style = 10
+
+    data = Reference(ws, min_col=2, min_row=1, max_row=n + 1)
+    cats = Reference(ws, min_col=1, min_row=2, max_row=n + 1)
+    bar.add_data(data, titles_from_data=True)
+    bar.set_categories(cats)
+
+    ws.add_chart(bar, "D2")
+    ws.column_dimensions["A"].width = 15
+    ws.column_dimensions["B"].width = 10
