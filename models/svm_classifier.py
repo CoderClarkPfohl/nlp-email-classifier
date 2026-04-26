@@ -99,8 +99,8 @@ class SoftVotingEnsemble(BaseEstimator, ClassifierMixin):
 # ─────────────────────────────────────────────────────────────
 #  Pipeline builders
 # ─────────────────────────────────────────────────────────────
-def build_tfidf(max_features: int = 8000) -> TfidfVectorizer:
-    return TfidfVectorizer(
+def build_tfidf(max_features: int = 8000, use_stemming: bool = False) -> TfidfVectorizer:
+    kwargs = dict(
         max_features=max_features,
         ngram_range=(1, 2),
         sublinear_tf=True,
@@ -108,6 +108,12 @@ def build_tfidf(max_features: int = 8000) -> TfidfVectorizer:
         max_df=0.95,
         strip_accents="unicode",
     )
+    if use_stemming:
+        from utils.preprocessing import stemming_tokenizer
+
+        kwargs["tokenizer"] = stemming_tokenizer
+        kwargs["token_pattern"] = None  # suppress sklearn warning
+    return TfidfVectorizer(**kwargs)
 
 
 def build_ensemble():
@@ -132,10 +138,20 @@ def train_and_evaluate(
     texts: List[str],
     labels: List[str],
     n_folds: int = 5,
+    extra_features: np.ndarray = None,
+    use_stemming: bool = False,
 ) -> Tuple[object, object, np.ndarray, np.ndarray, Dict]:
     """
     Train the ensemble pipeline with oversampling and evaluate via
     stratified k-fold cross-validation.
+
+    Parameters
+    ----------
+    extra_features : ndarray, optional
+        Dense feature matrix to stack alongside TF-IDF (e.g., LM perplexity,
+        cosine similarity, keyword counts, NER features, sentiment).
+    use_stemming : bool
+        If True, apply suffix-stripping stemmer during TF-IDF tokenization.
 
     Returns
     -------
@@ -144,10 +160,18 @@ def train_and_evaluate(
     cv_probas : ndarray of shape (n_samples, n_classes)
         Per-class probabilities for each sample from its held-out fold.
     """
-    tfidf = build_tfidf()
+    tfidf = build_tfidf(use_stemming=use_stemming)
 
     # Transform all text to TF-IDF
-    X_all = tfidf.fit_transform(texts)
+    X_tfidf = tfidf.fit_transform(texts)
+
+    # Stack extra features alongside TF-IDF if provided
+    if extra_features is not None:
+        from scipy.sparse import hstack as sp_hstack, csr_matrix
+
+        X_all = sp_hstack([X_tfidf, csr_matrix(extra_features)], format="csr")
+    else:
+        X_all = X_tfidf
     y_all = labels
 
     label_set = sorted(set(labels))

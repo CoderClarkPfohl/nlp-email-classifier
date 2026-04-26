@@ -17,12 +17,18 @@ import random
 import numpy as np
 import pandas as pd
 from collections import Counter, defaultdict
+from scipy.sparse import hstack as sp_hstack, csr_matrix
 
 from models.rule_labeler import label_email
 from models.svm_classifier import (
     build_tfidf, build_ensemble, oversample_minority
 )
-from utils.preprocessing import clean_email_body
+from models.ngram_lm import CategoryLanguageModels
+from models.feature_engineering import (
+    compute_keyword_features,
+    compute_category_centroids, compute_cosine_features,
+)
+from utils.preprocessing import clean_email_body, tokenize
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
@@ -292,9 +298,33 @@ def run_ensemble_test(emails):
         test_size=0.20, random_state=42, stratify=labels
     )
 
-    tfidf = build_tfidf()
-    X_train = tfidf.fit_transform(X_train_txt)
-    X_test  = tfidf.transform(X_test_txt)
+    tfidf = build_tfidf(use_stemming=True)
+    X_train_tfidf = tfidf.fit_transform(X_train_txt)
+    X_test_tfidf  = tfidf.transform(X_test_txt)
+
+    # ── Enhanced NLP features (Topics 3, 2/4, 5) ──
+    # N-gram LM perplexity (Topic 3) — trained on train split only
+    tok_train = [tokenize(t) for t in X_train_txt]
+    tok_test  = [tokenize(t) for t in X_test_txt]
+    lm = CategoryLanguageModels(n=2, k=0.1)
+    lm.fit(tok_train, y_train)
+    lm_train = lm.perplexity_features(tok_train)
+    lm_test  = lm.perplexity_features(tok_test)
+
+    # Cosine similarity (Topics 2 & 4) — centroids from train only
+    centroids, cats = compute_category_centroids(X_train_tfidf, y_train)
+    cos_train = compute_cosine_features(X_train_tfidf, centroids, cats)
+    cos_test  = compute_cosine_features(X_test_tfidf, centroids, cats)
+
+    # Keyword features (Topic 5)
+    kw_train = compute_keyword_features(X_train_txt)
+    kw_test  = compute_keyword_features(X_test_txt)
+
+    # Stack enhanced features with TF-IDF
+    extra_train = np.hstack([lm_train, cos_train, kw_train])
+    extra_test  = np.hstack([lm_test, cos_test, kw_test])
+    X_train = sp_hstack([X_train_tfidf, csr_matrix(extra_train)], format="csr")
+    X_test  = sp_hstack([X_test_tfidf, csr_matrix(extra_test)], format="csr")
 
     X_train_os, y_train_os = oversample_minority(X_train, y_train, min_samples=5)
 

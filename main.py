@@ -43,6 +43,7 @@ from utils.excel_export import export_to_excel
 from models.rule_labeler import label_email
 from models.sentiment import compute_sentiment
 from models.svm_classifier import train_and_evaluate
+from models.feature_engineering import compute_enhanced_features
 
 
 LABELS = ["acceptance", "rejection", "interview", "action_required",
@@ -176,12 +177,18 @@ def run_nlp_enrichment(df: pd.DataFrame) -> pd.DataFrame:
 # ─────────────────────────────────────────────────────────────
 
 def run_ensemble(df: pd.DataFrame, results_dir: str) -> pd.DataFrame:
-    print("[7/7] Training ensemble classifier (SVM + LR + NB) with oversampling")
+    print("[7/7] Training ensemble classifier (SVM + LR + NB) with enhanced NLP features")
     texts = df["clean_body"].tolist()
     labels = df["rule_label"].tolist()
 
+    # Compute enhanced NLP features (Topics 2-6)
+    print("       Computing enhanced features (LM + cosine + keywords + NER + sentiment)...")
+    extra_features = compute_enhanced_features(df)
+    print(f"       Feature vector: TF-IDF (stemmed) + {extra_features.shape[1]} enhanced features")
+
     tfidf, ensemble, cv_preds, cv_probas, metrics = train_and_evaluate(
-        texts, labels, n_folds=5
+        texts, labels, n_folds=5,
+        extra_features=extra_features, use_stemming=True,
     )
 
     df["ensemble_prediction"] = cv_preds

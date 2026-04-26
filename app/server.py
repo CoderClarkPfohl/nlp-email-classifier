@@ -39,6 +39,7 @@ from utils.excel_export import export_to_excel, CATEGORY_COLORS
 from models.rule_labeler import label_email
 from models.sentiment import compute_sentiment
 from models.svm_classifier import train_and_evaluate
+from models.feature_engineering import compute_enhanced_features
 
 import matplotlib
 matplotlib.use("Agg")
@@ -128,9 +129,13 @@ def run_pipeline(df: pd.DataFrame) -> tuple:
         lambda t: summarize_email(t, max_sentences=2)
     )
 
-    # Ensemble classifier
+    # Enhanced NLP features (Topics 2-6)
+    extra_features = compute_enhanced_features(df)
+
+    # Ensemble classifier with enhanced features + stemming
     tfidf, ensemble, cv_preds, cv_probas, metrics = train_and_evaluate(
-        df["clean_body"].tolist(), df["rule_label"].tolist(), n_folds=5
+        df["clean_body"].tolist(), df["rule_label"].tolist(), n_folds=5,
+        extra_features=extra_features, use_stemming=True,
     )
     df["final_label"] = cv_preds
     df["ensemble_confidence"] = cv_probas.max(axis=1).round(4)

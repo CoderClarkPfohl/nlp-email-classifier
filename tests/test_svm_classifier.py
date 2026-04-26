@@ -273,3 +273,59 @@ class TestTrainAndEvaluate:
         texts, labels = corpus
         _, _, _, _, metrics = train_and_evaluate(texts, labels, n_folds=3)
         assert len(metrics["fold_accuracies"]) == 3
+
+
+# ─────────────────────────────────────────────────────────────
+#  Enhanced features: extra_features + use_stemming
+# ─────────────────────────────────────────────────────────────
+class TestEnhancedFeatures:
+    """Test that extra_features and use_stemming params work correctly."""
+
+    @pytest.fixture
+    def corpus(self):
+        base = [
+            ("we are pleased to offer you congratulations welcome aboard start date", "acceptance"),
+            ("we regret inform you not selected unfortunately cannot offer", "rejection"),
+            ("invite you interview schedule phone screen video interview technical", "interview"),
+            ("complete assessment online coding challenge hackerrank action required", "action_required"),
+            ("thank you for applying application received under review will be in touch", "in_process"),
+            ("unsubscribe newsletter job alert similar jobs weekly digest job recommendations", "unrelated"),
+        ]
+        texts, labels = [], []
+        for body, label in base:
+            for i in range(10):
+                texts.append(f"{body} variant {i}")
+                labels.append(label)
+        return texts, labels
+
+    def test_extra_features_accepted(self, corpus):
+        texts, labels = corpus
+        extra = np.random.rand(len(texts), 4)
+        _, _, preds, _, metrics = train_and_evaluate(
+            texts, labels, n_folds=2, extra_features=extra,
+        )
+        assert len(preds) == len(texts)
+        assert metrics["mean_cv_accuracy"] > 0
+
+    def test_use_stemming(self, corpus):
+        texts, labels = corpus
+        _, _, preds, _, metrics = train_and_evaluate(
+            texts, labels, n_folds=2, use_stemming=True,
+        )
+        assert len(preds) == len(texts)
+        assert metrics["mean_cv_accuracy"] > 0
+
+    def test_both_extra_and_stemming(self, corpus):
+        texts, labels = corpus
+        extra = np.random.rand(len(texts), 6)
+        _, _, preds, probas, metrics = train_and_evaluate(
+            texts, labels, n_folds=2,
+            extra_features=extra, use_stemming=True,
+        )
+        assert len(preds) == len(texts)
+        assert probas.shape == (len(texts), 6)
+        assert metrics["mean_cv_accuracy"] > 0
+
+    def test_build_tfidf_with_stemming(self):
+        v = build_tfidf(use_stemming=True)
+        assert v.tokenizer is not None

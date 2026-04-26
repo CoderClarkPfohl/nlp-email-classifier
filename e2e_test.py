@@ -33,6 +33,7 @@ from utils.excel_export import export_to_excel
 from models.rule_labeler import label_email
 from models.sentiment import compute_sentiment
 from models.svm_classifier import train_and_evaluate
+from models.feature_engineering import compute_enhanced_features
 
 # Use a different seed from generate_synthetic_data.py (which uses 42)
 # so these 200 emails are genuinely independent from the 2000-email training set.
@@ -179,10 +180,12 @@ def run_pipeline(df: pd.DataFrame) -> pd.DataFrame:
     # Stage 5: summarization
     df["summary"] = df["clean_body"].apply(lambda t: summarize_email(t, max_sentences=2))
 
-    # Stage 6: ensemble classifier (train on rule_label, CV on same data)
+    # Stage 6: enhanced features + ensemble classifier
     import numpy as np
+    extra_features = compute_enhanced_features(df)
     tfidf, ensemble, cv_preds, cv_probas, metrics = train_and_evaluate(
-        df["clean_body"].tolist(), df["rule_label"].tolist(), n_folds=5
+        df["clean_body"].tolist(), df["rule_label"].tolist(), n_folds=5,
+        extra_features=extra_features, use_stemming=True,
     )
     df["final_label"]          = cv_preds
     df["ensemble_confidence"]  = cv_probas.max(axis=1).round(4)
