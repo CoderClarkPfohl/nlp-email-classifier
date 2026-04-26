@@ -1,5 +1,27 @@
+# Python
 venv/
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
+dist/
+build/
+
+# macOS
 .DS_Store
+
+# Claude / AI tooling — never commit these
+memory/
+.claude/
+
+# Generated outputs — re-created by running the pipeline
+results/
+
+# Flask UI session files
+app/sessions/
+
+# Excel temp files (created when file is open)
+~$*.xlsx
+
+# Data files (large / sensitive — add back if you want to track them)
+# data/

@@ -2,8 +2,8 @@ ACCURACY ANALYSIS
 ============================================================
 
 Dataset: 494 emails, 5 classes
-Majority baseline: 64.4%
-Ensemble accuracy: 88.1%
+Majority baseline: 63.2%
+Ensemble accuracy: 86.6%
 
 Realistic ceilings:
   TF-IDF + Ensemble: 88-92%

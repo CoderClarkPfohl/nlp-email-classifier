@@ -121,6 +121,47 @@ def rand_sender(company):
     return random.choice(patterns)
 
 
+def _vary_template(body: str, drop_prob: float = 0.15, shuffle_prob: float = 0.25) -> str:
+    """
+    Add surface-level variation to a generated email body so that the
+    TF-IDF vocabulary isn't perfectly repetitive across templates.
+
+    Strategy:
+    - Split body into lines; preserve the first and last non-empty lines
+      (greeting and sign-off) unchanged.
+    - Middle lines: randomly drop each one with `drop_prob`, then optionally
+      shuffle the remaining middle block with probability `shuffle_prob`.
+
+    This is intentionally lightweight — it diversifies phrasing without
+    changing the semantic label of the email.
+    """
+    lines = body.split("\n")
+    if len(lines) < 4:
+        return body  # Too short to vary without breaking structure
+
+    first = lines[0]
+    last  = lines[-1]
+    middle = lines[1:-1]
+
+    # Random sentence dropping
+    kept = [ln for ln in middle if random.random() > drop_prob or ln.strip() == ""]
+    if not kept:
+        kept = middle  # never drop everything
+
+    # Random shuffle of non-empty middle lines
+    if random.random() < shuffle_prob:
+        nonempty_idx = [i for i, ln in enumerate(kept) if ln.strip()]
+        if len(nonempty_idx) > 2:
+            # Shuffle only the interior non-empty lines (keep first + last of middle intact)
+            interior = nonempty_idx[1:-1]
+            shuffled = interior[:]
+            random.shuffle(shuffled)
+            for orig_i, new_i in zip(interior, shuffled):
+                kept[orig_i], kept[new_i] = kept[new_i], kept[orig_i]
+
+    return "\n".join([first] + kept + [last])
+
+
 # ─────────────────────────────────────────────────────────────
 #  Email templates by category
 # ─────────────────────────────────────────────────────────────
@@ -472,6 +513,7 @@ def generate_dataset(
     for gen_fn, count in generators:
         for _ in range(count):
             company, subject, body, label = gen_fn()
+            body = _vary_template(body)
             d = rand_date()
             rows.append({
                 "Unnamed: 0": idx,

@@ -109,12 +109,32 @@ ACTION_MEDIUM = [
 ]
 
 UNRELATED_PHRASES = [
-    "unsubscribe from all", "newsletter", "marketing preferences",
+    "unsubscribe from all", "unsubscribe here", "unsubscribe",
+    "newsletter", "marketing preferences",
     "password reset", "verify your email address",
     "confirm your email address", "account has been created",
     "subscription", "promotional", "weekly digest",
     "job alert", "job recommendations", "similar jobs",
-    "jobs that match", "new jobs for you",
+    "jobs that match", "new jobs for you", "new jobs matching",
+    "manage alerts", "manage your alerts",
+    "job fair", "career fair",
+    "career coach", "career insights", "career development",
+    "resume tips", "resume builder", "interview preparation guide",
+    "salary survey", "salary trends", "job market report",
+    "networking event", "webinar",
+    "referral program", "referral bonus", "refer a friend",
+    "profile views", "profile was viewed",
+    "update your preferences", "update your profile",
+    "industry trends", "recommendations for you",
+    "based on your recent activity", "based on your preferences",
+    "one click", "apply with one click",
+    "your dashboard", "application tracker",
+    "maintenance notice", "register now", "rsvp",
+    "browse open positions", "browse jobs",
+    "talent community", "talent network",
+    "download the report", "read the full article",
+    "get started now", "try it now", "book now",
+    "log in to your dashboard",
 ]
 
 IN_PROCESS_PHRASES = [
@@ -173,6 +193,14 @@ def label_email(subject: str, body: str) -> Tuple[str, float]:
 
     # ── Unrelated ──
     scores["unrelated"] += _count_matches(combined, UNRELATED_PHRASES) * 3.0
+    if _has_any(subj, ["job alert", "job digest", "jobs matching",
+                        "newsletter", "password reset", "verify your email",
+                        "similar jobs", "weekly digest", "career insights",
+                        "job market", "resume tips", "referral",
+                        "job fair", "networking event", "profile views",
+                        "new feature", "maintenance notice",
+                        "salary survey", "industry trends"]):
+        scores["unrelated"] += 3.0
     if not _has_any(combined, ["application", "applied", "position", "role",
                                 "candidate", "resume", "job"]):
         scores["unrelated"] += 2.0

@@ -1,0 +1,52 @@
+body {
+    background: #f8f9fa;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+}
+
+h1 {
+    font-weight: 700;
+}
+
+.drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.drop-zone:hover,
+.drop-zone.drag-over {
+    border-color: #0d6efd;
+    background: #f0f4ff;
+}
+
+.drop-zone-text p {
+    margin: 0;
+}
+
+/* Badge sizing */
+.badge {
+    font-size: 0.85rem;
+    padding: 0.35em 0.65em;
+}
+
+/* Preview table */
+.table-responsive {
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+.table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Card tweaks */
+.card-header {
+    background: #fff;
+    border-bottom: 1px solid #eee;
+}
